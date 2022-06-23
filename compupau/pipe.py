@@ -17,8 +17,8 @@ file = "ArteryObjAN1-0.vtp"
 script = 'vmtknetworkeditor '
 input_file =  '-ifile ' + file 
 output_file = ' -ofile ' + 'AAA.'
-#myPype = pypes.PypeRun("vmtknetworkextraction -ifile ArteryObjAN1-2.vtp -advancementratio 1.05  -ofile An.vtp")
-myPype = pypes.PypeRun("vmtkcenterlinesections -ifile ArteryObjAN1-0.vtp -centerlinesfile  ArteryObjAN1-0enramas.vtp -ofile AA.vtp")
+#myPype = pypes.PypeRun("vmtknetworkextraction -ifile ArteryObjAN1-2.vtp -advancementratio 1  -ofile An.vtp")
+myPype = pypes.PypeRun("vmtkcenterlinesections -ifile ArteryObjAN1-2.vtp -centerlinesfile   An.vtp -ofile AA.vtp")
 #myPype = pypes.PypeRun("vmtkdistancetocenterlines -ifile ArteryObjAN1-0.vtp -centerlinesfile ArteryObjAN1-0network.vtp -centerlineradius 1 -ofile AAA.vtp")
 #myPype = pypes.PypeRun("vmtkcenterlines -ifile ArteryObjAN1-0.vtp  -ofile A.vtp")
 from vmtk import vtkvmtk
