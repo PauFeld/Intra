@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<VTKFile type="PolyData" version="0.1" byte_order="LittleEndian" header_type="UInt32" compressor="vtkZLibDataCompressor">
+  <PolyData>
+    <Piece NumberOfPoints="43"                   NumberOfVerts="0"                    NumberOfLines="1"                    NumberOfStrips="0"                    NumberOfPolys="0"                   >
+      <PointData>
+        <DataArray type="Float64" Name="Radius" format="appended" RangeMin="0"                    RangeMax="0.95129116331"        offset="0"                   />
+      </PointData>
+      <CellData>
+        <DataArray type="Int64" Name="Topology" NumberOfComponents="2" format="appended" RangeMin="1.4142135624"         RangeMax="1.4142135624"         offset="500"                 />
+      </CellData>
+      <Points>
+        <DataArray type="Float32" Name="Points" NumberOfComponents="3" format="appended" RangeMin="59.24456328"          RangeMax="76.9674836"           offset="544"                 />
+      </Points>
+      <Verts>
+        <DataArray type="Int64" Name="connectivity" format="appended" RangeMin=""                     RangeMax=""                     offset="1260"                />
+        <DataArray type="Int64" Name="offsets" format="appended" RangeMin=""                     RangeMax=""                     offset="1276"                />
+      </Verts>
+      <Lines>
+        <DataArray type="Int64" Name="connectivity" format="appended" RangeMin=""                     RangeMax=""                     offset="1292"                />
+        <DataArray type="Int64" Name="offsets" format="appended" RangeMin=""                     RangeMax=""                     offset="1428"                />
+      </Lines>
+      <Strips>
+        <DataArray type="Int64" Name="connectivity" format="appended" RangeMin=""                     RangeMax=""                     offset="1468"                />
+        <DataArray type="Int64" Name="offsets" format="appended" RangeMin=""                     RangeMax=""                     offset="1484"                />
+      </Strips>
+      <Polys>
+        <DataArray type="Int64" Name="connectivity" format="appended" RangeMin=""                     RangeMax=""                     offset="1500"                />
+        <DataArray type="Int64" Name="offsets" format="appended" RangeMin=""                     RangeMax=""                     offset="1516"                />
+      </Polys>
+    </Piece>
+  </PolyData>
+  <AppendedData encoding="base64">
+   _AQAAAACAAABYAQAAYwEAAA==eJwBWAGn/ufNw9pYEh8/py1uC4Y0Nz8VLYmfuhBSP2zdf3QoBGo/2HK9thh6hj+G45g3i4umPz+NXJ2eRsc/L/MKq8Vu0z/Gqk1x7PbXP95knfHzjNs/k3fi87/83z9HXXeSj0fiP7RxE+tsfOM/d0FYajvg5D8Zzo305FPmP9Ss/+ucMuY/MR3i6OyJ5T8igZp7xVLlP5nciyqkl+U/TQxOlDFA5j8DOUc8uuTmP8i9mNGbcOc/Ni8mSZye5z/ID5g90uLnP4H4NDdOYeg/cf4NuS5i6D8y5Mpnwa/oP3Lqliq1Bek/+P+tzjKc6j9dnpL96ALsP8QrKI+auuw/c81FJIk27j8EZqISmTbsP9RCEcBujew/ZMk7wSDt7T8U9XJJyPztP/ajvTX9qu0/Tr9VGb4e7j9gYEN/qGvuP7HybCr6cO4/mQqoEd027j/LzV5wlyLtPwAAAAAAAAAA4Beuow==AQAAAACAAAAQAAAADwAAAA==eJz7/x8CGBkgAABjtAf6AQAAAACAAAAEAgAABgIAAA==eJwNxl9IU3EUAGBTYQxMzUmaaUu2ad7fvRRjD5Vs07NGGLOZM6Scbm6u6Rpttu2SzmqJCYMICS3zLcqWIGM9WS3intNDZdEglP5gJBQjwofCspCg9j19p+sEcB4XacUXQ33ubbk/zX1BI0B97kO5y9QCjHeIFB+IYa9SgB6bSJw3hpqtAlw+IlJeVwwXDTxo20T63R7DshIeqrMREo0XMTjFQ8PDMFXLo9j3jIdlT4iKnOdQ6+XB13SW8oIiXtPxYFsPUjIewsoEg4A1QMaNAN4dY3BFOEMVP/24fIrBjNZP1q/9qD/AYMHgo6FLbjSXMyhP95Mq7MDVNQ6eOLxUEO5C3VsOJv566F9dJz56w8GPW330/nY7lm5yoG91k1x7FMe9DA6+6iXXbAuORBnsizhp+qoZcZLBrNpBY6vN+GCCwXCym266DDh3g0G61U4DuxvRPs/g26+TlJHtx26JQcZ6goZtOuwJMVic76DROIdbNAymR4/RoF2F6usNYDpvpSKXEo3r9fDcZKFtU1W4p1ANqcoWklIKdH+qhZfCYbJki3EtqoTHGTP5SY5fRmrAvfcQJe7nY2SzCjzFJrqT2JBWZDtg7kIzKSxZqcK+HVzYRKnad9LHJQV8TxqpwPlCyijK4MOSgT7np6XXNaUQ8eqpcPCeNLOrBDr/NJJq56T0H9me6bU=AAAAAACAAAAAAAAAAAAAAACAAAAAAAAAAQAAAACAAABYAQAAVAAAAA==eJwtxckCgVAAAMCnqGxRKZRdhP//QIdmLhPCaOLIsaeeOXHqzHMvvPTKa+feeOvCpSvvXLvx3gcf3brzyWdffPXNdz/8dO+X3x788dc//wGfRwOIAQAAAACAAAAIAAAACwAAAA==eJzTZoAAAAFgACw=AAAAAACAAAAAAAAAAAAAAACAAAAAAAAAAAAAAACAAAAAAAAAAAAAAACAAAAAAAAA
+  </AppendedData>
+</VTKFile>

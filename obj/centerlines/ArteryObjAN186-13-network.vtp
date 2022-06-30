@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<VTKFile type="PolyData" version="0.1" byte_order="LittleEndian" header_type="UInt32" compressor="vtkZLibDataCompressor">
+  <PolyData>
+    <Piece NumberOfPoints="125"                  NumberOfVerts="0"                    NumberOfLines="6"                    NumberOfStrips="0"                    NumberOfPolys="0"                   >
+      <PointData>
+        <DataArray type="Float64" Name="Radius" format="appended" RangeMin="0"                    RangeMax="1.4891493847"         offset="0"                   />
+      </PointData>
+      <CellData>
+        <DataArray type="Int64" Name="Topology" NumberOfComponents="2" format="appended" RangeMin="1"                    RangeMax="3"                    offset="1304"                />
+      </CellData>
+      <Points>
+        <DataArray type="Float32" Name="Points" NumberOfComponents="3" format="appended" RangeMin="66.662572487"         RangeMax="78.493842699"         offset="1368"                />
+      </Points>
+      <Verts>
+        <DataArray type="Int64" Name="connectivity" format="appended" RangeMin=""                     RangeMax=""                     offset="3136"                />
+        <DataArray type="Int64" Name="offsets" format="appended" RangeMin=""                     RangeMax=""                     offset="3152"                />
+      </Verts>
+      <Lines>
+        <DataArray type="Int64" Name="connectivity" format="appended" RangeMin=""                     RangeMax=""                     offset="3168"                />
+        <DataArray type="Int64" Name="offsets" format="appended" RangeMin=""                     RangeMax=""                     offset="3464"                />
+      </Lines>
+      <Strips>
+        <DataArray type="Int64" Name="connectivity" format="appended" RangeMin=""                     RangeMax=""                     offset="3520"                />
+        <DataArray type="Int64" Name="offsets" format="appended" RangeMin=""                     RangeMax=""                     offset="3536"                />
+      </Strips>
+      <Polys>
+        <DataArray type="Int64" Name="connectivity" format="appended" RangeMin=""                     RangeMax=""                     offset="3552"                />
+        <DataArray type="Int64" Name="offsets" format="appended" RangeMin=""                     RangeMax=""                     offset="3568"                />
+      </Polys>
+    </Piece>
+  </PolyData>
+  <AppendedData encoding="base64">
+   _AQAAAACAAADoAwAAvwMAAA==eJxF02lM0wcYBnCQLXJveAEJN14oYSJWy4o8nCqCM4AcohxCkUB1DTEcLsCANrPKbZlOCi2XbZWUS4IwECwFy6ANVRS3iWMMEUohrvwLGBEcyZbu+fL78Lzf3jw6Ov8mUpG5ckmxiM+ecgaiDJfBf0940DxWUOdt903x6P/+d67T6nxWOCZYQDhHWFXmN4+Y+dra3mcqFLXu6lH2qFA/81yR8noObzxc3jOOKUFvovvuS5rVOs6qUXKc5rWqps8U2Whm8eveVddM9Syko+wLpcFKzB+rjgnoVoJP66eJcyRa19hcq7Hf++D8o4gILJFAY9WynZTQDyH1HLvwxAAmr7BkBOUJRDlDJskeUmRmieidAYPYubCdZUr9BXw9T1pXwRAeCUm73MTD+H5pndM9LdXK+su+cbesE6WEOupJChNBsae4jNkw1LzsmrvUYwfb/J7wdqYbGr4dZbbnkfBi01y2qzUZswXsxRBdCg5U+74S7PCEU2xPZX+nF+x56sPpP/lAOVHx7MFbP7invVsnuxyHfE/qREVhAKqSyy3O1gWBMXCBf/X+aYBH+VB2PRi+k1Jv2tVQkIeY3K8fhEEeH7IWaxkJ2qBRgPNwFKx3349Si6MxM2Vkf5MRh/hRTkrTmXgYKAbsphOpcM9q2Pr63kVQXA4yDPcnY5u6aZvDJxrqMvTlVtZ0HG27ZZIckIqml4cdLL66Ann+ww+OIWkotDVVd7VkIGG8/W//099BrUMlt3llI0d28MRH71ysLutOdJvmo6Fs0tDLjAlOQqFeR+APSBA8TxuWsGBlyQj7lFeAqmXuIdeSYmQvCi36V0tRe+A8t/yPm/gtMFe/ZKUcL7zN/VQnb8PEIrrv7eQdyJIue/g8rsQj93qj6EUeFKQkRVBvDa6ZVBM2HXWIFPeFkZV3UcTzn1qOEELOH/HcYtwAvadpR780bsR+91d7vVqasc+pKZlf0IrKdys3iIo2hK4J1KI37aBJGHuy6Bt/jVlln/TphrWlbuHjxF6Im7PdIlLFuKwT+/NinATnAhv+XL82AB/u7bbGZimSvsiTCA8NIX15QTaTKEeoa7YjfWZEuwdu0PT1gi1LqFTzqOOdGpif7w8xOK4Bk8Gns3kEInZabWImEFCdohpvphMQTDneuxVMwD8j0aHRjEDMRc1kxMb+XEky0Q5zAptryHfTczf6+jJqsZRAnJlduFxEwFbVpd9lo8H456xBGV+D+eEOrzsLBDINOimG7QTGDJw/ZtAILI2YHqEc0Wj9B5kJ5/A=AQAAAACAAABgAAAAHgAAAA==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AQAAAACAAAAwAAAAGAAAAA==eJxjY4AAfigtCqUVoXQGlK6F0gATyAExAAAAAACAAAAAAAAAAAAAAACAAAAAAAAAAAAAAACAAAAAAAAAAAAAAACAAAAAAAAA
+  </AppendedData>
+</VTKFile>
