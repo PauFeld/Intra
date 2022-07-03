@@ -29,7 +29,9 @@ crear grafo a partir de obj+radio(migue)
 0- obj a vtk
 
 1- saco la centerline con PIPE
-2- ramifico con cross-sections
+
+1.1- saco los ultimos puntos con endpoints
+
 2- saco las secciones transversales con PIPE
 3- calculo los radios con radiusfromsection
 4- saco obj con centerline en ramas de cross-sections

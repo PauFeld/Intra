@@ -8,8 +8,9 @@ import os
 files = os.listdir('.')
 #myPype = pypes.PypeRun("vmtknetworkextraction -ifile ArteryObjAN1-5.vtp -advancementratio 1.1  -ofile centerlines/An.vtp")
 cfolder = os.listdir('./centerlines')
-#myPype = pypes.PypeRun("vmtkcenterlinesections -ifile ArteryObjAN1-11.vtp -centerlinesfile  centerlines/An.vtp -ofile A.vtp")
-myPype = pypes.PypeRun("vmtkendpointextractor -ifile centerlines/ArteryObjAN1-0-network.vtp  -ofile A.vtp")
+#myPype = pypes.PypeRun("vmtkcenterlinesections -ifile ArteryObjAN1-19.vtp -centerlinesfile  ArteryObjAN1-19-network.vtp -ofile A.vtp")
+
+myPype = pypes.PypeRun("vmtkcenterlines -ifile ArteryObjAN1-19.vtp -seedselector pointlist -sourcepoints 1 2 3  -targetpoints 15.46347046 -39.87777328 -58.52421188 -ofile A.vtp")
 '''
 for file in files:
     #print(file.split(".")[1])
@@ -21,6 +22,7 @@ for file in files:
             myPype = pypes.PypeRun(script+input_file+output_file)
 '''
 #files = ["ArteryObjAN1-19.vtp"]
+'''
 sfolder = os.listdir('./crossSections')
 for file in files:
     if file.split(".")[1] == "vtp":
@@ -30,8 +32,7 @@ for file in files:
             centerline_file = " -centerlinesfile centerlines/"+file.split(".")[0] + '-network.vtp '
             output_file = ' -ofile crossSections/' + file.split(".")[0] + '-section.vtp'
             #myPype = pypes.PypeRun(script+input_file+centerline_file +output_file)
-
-
+'''
 #myPype = pypes.PypeRun("vmtknetworkextraction -ifile ArteryObjAN129-17.vtp -advancementratio 1.05  -ofile centerlines/An.vtp")
 #myPype = pypes.PypeRun("vmtkcenterlinesections -ifile ArteryObjAN1-7.vtp -centerlinesfile  ArteryObjAN1-7network.vtp -ofile ArteryObjAN1-7sections.vtp")
 
