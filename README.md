@@ -54,6 +54,10 @@ crear grafo a partir de obj+radio(migue)
 
 
 no extrae cross sections
+1-5 punta cerrada
+1-16 la centerline esta fea, con advancement ratio 1.1 queda mejor
+
+
 1-10
 1-11
 1-14

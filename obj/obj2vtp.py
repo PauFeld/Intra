@@ -24,13 +24,13 @@ for file in files:
 
 
 '''
-filename = 'ArteryObjAN1-19.obj'
+filename = 'ArteryObjAN1-16.obj'
 reader = vtk.vtkOBJReader()
 reader.SetFileName(filename)
 reader.Update()
 data = reader.GetOutput()
 print(data)
 writer = vtk.vtkXMLPolyDataWriter()
-writer.SetFileName("ArteryObjAN1-19.vtp");
+writer.SetFileName("ArteryObjAN1-16.vtp");
 writer.SetInputData(data);
 writer.Write()

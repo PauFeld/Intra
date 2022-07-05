@@ -4,7 +4,7 @@ import vtk
 from auxiliares import get_points_by_line, read_vtk, LinearCurveLength, UniformLinearInterpolation
 
 
-centerline = read_vtk("centerlines/ArteryObjAN1-19-network.vtp")
+centerline = read_vtk("centerlines/An.vtp")
 
 points_array = get_points_by_line(centerline)
 print(points_array)

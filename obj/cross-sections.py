@@ -31,6 +31,7 @@ def get_cross_sections(centerline):
     points_full = vtk.vtkPoints()
     number_points = interpolated.shape[0]
 
+    #probar getcellpoints para no usar for
     for i in range(number_points):
         points_full.InsertNextPoint(interpolated[i,:3])
 
