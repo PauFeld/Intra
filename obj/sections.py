@@ -64,7 +64,7 @@ def calculate_radius (centerline):
     return np.array(radius_array)
   
 
-radius_array=calculate_radius(centerline)
+#radius_array=calculate_radius(centerline)
 
 #np.save('radius/ArteryObjAN6-2-radius.npy', radius_array)
 
@@ -117,14 +117,63 @@ f.show()
 
 
 
-cutp = plane.clone(deep = False).cutWithMesh(msh).triangulate()
 cutplane = plane.cutWithMesh(msh).triangulate()
 f = Plotter()
 f.add(cutplane)
 f.add(msh)
-#f.show(cutp)
 area = cutplane.area()
 print(area)
 f = Plotter()
 f.show([cutplane, f"area: {area}"], axes=1)
 
+
+
+plane2 = Grid( pos = centerline_np[15, :3], s = (3, 3), res = (150,150),normal = tangent).cutWithMesh(msh).triangulate()
+vert = cutplane.points()
+faces = cutplane.faces()
+print(vert)
+vert2 = plane2.points()
+faces2 = plane2.faces()
+print(vert2)
+me1 = Mesh([vert, faces])
+me2 = Mesh([vert2, faces2])
+f = Plotter()
+f.show(Mesh([me2, me1]))
+
+f = read_vtk("crossSections/ArteryObjAN1-0-section.vtp")
+print(f)
+
+sections = vtk.vtkPolyData()
+
+points = vtk.vtkPoints()
+
+for point in cutplane.points():
+    points.InsertNextPoint(point)
+# Add the points to the dataset
+sections.SetVerts(points)
+sections.SetFaces(cutplane.feces())
+
+    
+   
+point_count = 0
+cells = vtk.vtkCellArray()
+
+'''
+for i in range(len(centerline_np)): 
+    number_points = centerline_np.shape[0]
+    polyLine = vtk.vtkPolyLine()
+    polyLine.GetPointIds().SetNumberOfIds(number_points-1)
+    
+        j = 0
+        for k in range(point_count+1, point_count+number_points):
+            polyLine.GetPointIds().SetId(j, k)
+            j += 1
+        point_count+=number_points
+        cells.InsertNextCell(polyLine)
+'''
+
+    
+    #print("l0", polyData.GetCell(0))
+    #print("l1", polyData.GetCell(1))
+f = Plotter()
+f.show(sections)
