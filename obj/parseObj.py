@@ -1,6 +1,7 @@
 import numpy as np
 import networkx as nx
 from scipy.spatial import KDTree
+from vec3 import Vec3
 
 def calcularGrafoYArbol( fileObj, fileRadios ):
     radios = np.load(fileRadios)
@@ -9,10 +10,9 @@ def calcularGrafoYArbol( fileObj, fileRadios ):
     lineas = []
 
     for row in fileObj:
-        print(row)
         if row[0:2] == 'v ':
             vertice = np.fromstring( row[2:], dtype=np.float32, sep=' ')
-            vertices.append( (len(verticesCrudos), {'posicion':  np.array([vertice[0], vertice[1], vertice[2]]), 'radio': radios[len(verticesCrudos)]} ))
+            vertices.append( (len(verticesCrudos), {'posicion': Vec3( vertice[0], vertice[1], vertice[2]), 'radio': radios[len(verticesCrudos)]} ))
             verticesCrudos.append(vertice)
         elif row[0:2] == 'l ':
             linea = np.fromstring(row[2:], dtype=np.uint32, sep=' ')
@@ -36,7 +36,7 @@ def combinarNodos( grafo, repetidos ):
         aristas = np.unique( np.concatenate([ [arista[1] for arista in grafo.edges(nodo) if arista[1] not in grupo] for nodo in grupo]))
 
         nuevoVertice = {
-            'posicion': np.sum( [ nodo['posicion'] for nodo in nodos ], axis=1 ) / len(nodos),
+            'posicion': np.sum( [ nodo['posicion'] for nodo in nodos ] ) / len(nodos),
             'radio': np.sum( [ nodo['radio'] for nodo in nodos] ) / len(nodos)
         }
         nombreNodo = np.min(grupo)
