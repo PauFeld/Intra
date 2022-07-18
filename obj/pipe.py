@@ -12,7 +12,7 @@ import sys
 files = os.listdir('.')
 #myPype = pypes.PypeRun("vmtknetworkextraction -ifile ArteryObjAN1-16.vtp -advancementratio 1  -ofile centerlines/An.vtp")
 cfolder = os.listdir('./centerlines')
-myPype = pypes.PypeRun("vmtkcenterlinesections -ifile ArteryObjAN1-16.vtp -centerlinesfile  centerlines/An.vtp -ofile A.vtp")
+myPype = pypes.PypeRun("vmtkcenterlinesections -ifile ArteryObjAN25-7.vtp -centerlinesfile  centerlines/ArteryObjAN25-7-network.vtp -ofile A.vtp")
 
 #myPype = pypes.PypeRun("vmtkcenterlines -ifile ArteryObjAN1-19.vtp -seedselector pointlist -sourcepoints 1 2 3  -targetpoints 15.46347046 -39.87777328 -58.52421188 -ofile A.vtp")
 '''

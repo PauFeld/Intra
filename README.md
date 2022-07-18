@@ -6,7 +6,7 @@ funciones auxiliares
 obtengo radio a partir de los poligonos de secciones transversales
 
 #cross-sections.py
-armo archivo vtp que tiene la centerline separada en ramas(interpolacion?) CAMBIAR OUTPUT A OBJ
+armo archivo vtp que tiene la centerline separada en ramas(interpolacion?) no hace falta si no hago interpolacion
 
 #radius.py
 calculo el radio a partir de los poligonos
@@ -30,11 +30,10 @@ crear grafo a partir de obj+radio(migue)
 
 1- saco la centerline con PIPE
 
-1.1- saco los ultimos puntos con endpoints
-
 2- saco las secciones transversales con PIPE
-3- calculo los radios con radiusfromsection
-4- saco obj con centerline en ramas de cross-sections
+
+3- calculo los radios y poligonos con sections
+
 5- armo grafo con pruebaparser
 
 
@@ -53,11 +52,7 @@ crear grafo a partir de obj+radio(migue)
 28-0
 
 
-no extrae cross sections
-1-5 punta cerrada
 1-16 la centerline esta fea, con advancement ratio 1.1 queda mejor
 
-
-1-10
-1-11
-1-14
+problema al armar grafo:
+1-10 componentes conexas

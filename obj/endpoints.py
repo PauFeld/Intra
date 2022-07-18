@@ -4,10 +4,10 @@ import vtk
 from auxiliares import get_points_by_line, read_vtk, LinearCurveLength, UniformLinearInterpolation
 
 
-centerline = read_vtk("centerlines/An.vtp")
+centerline = read_vtk("centerlines/ArteryObjAN1-0-network.vtp")
 
 points_array = get_points_by_line(centerline)
-print(points_array)
+#print(points_array)
 #separo las ramas
 splited = np.split(points_array, np.where(np.diff(points_array[:,3]))[0]+1)
 
@@ -27,7 +27,7 @@ for i in range(len(splited)):
     
 
 #print("endpoints", np.array(endpoints))
-#print("e", e)
+print("e", e)
 #a =  list(dict.fromkeys(endpoints))    
 #print("not", np.array(a))
 

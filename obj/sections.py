@@ -1,49 +1,108 @@
 import numpy as np
-import math
 import vtk
 from auxiliares import get_points_by_line, read_vtk
-
-
+from collections import Counter
 from vedo import *
-filename = 'ArteryObjAN1-17.obj'
-msh = load(filename)
-msh.cmap('viridis', msh.points()[:,1])
-#msh.show()
 
-centerline = read_vtk("centerlines/ArteryObjAN1-17-network.vtp")
+
+##Load mesh and centerline
+filename = 'ArteryObjAN1-14'
+msh = load(filename+".obj")
+#msh.cmap('viridis', msh.points()[:,1])
+#msh.show()
+centerline = read_vtk("centerlines/" + filename + "-network.vtp")
 centerline_np = get_points_by_line(centerline)
 
-
-
-def calculate_radius (centerline):
-    centerline_np = get_points_by_line(centerline)
+##find centerline repeated points
+splited = np.split(centerline_np, np.where(np.diff(centerline_np[:,3]))[0]+1)
+e = {}# to save every branch endpoint
+sum = 0
+for i in range(len(splited)):
+    rama = splited[i]
+    start = rama[0, :3]
+    e[sum] = tuple(start) #key is the point index, value coordinates
+    finish = rama[rama.shape[0]-1, :3]
+    sum += rama.shape[0]
+    e[sum-1] = tuple(finish)
     
-    radius_array = []
+##keep only the repeated endpoints
+b = np.array([key for key,  value in Counter(e.values()).items() if value > 1])
 
-    for j in range(centerline.GetNumberOfCells()):
-        numberOfCellPoints = centerline.GetCell(j).GetNumberOfPoints();
+
+##list with the indexes of the repeated points
+key_list = []
+for element in b: #coordintaes of each repeated point
+    element = tuple(element)
+    for key,value in e.copy().items():
+        if element == value:#if the endpoint is on the repeated list I save the index
+            key_list.append(key)#key_list tiene los indices de los puntos repetidos
+  
+
+##keep the alrgest region when the cutting plane cuts the mesh more than once
+##MODIFY TO SHORTEN PLANE IF IT CUTS MORE THAN ONE REGION
+def get_largest_region(cutplane, point):
+    connectivityFilter = vtk.vtkConnectivityFilter()
+    connectivityFilter.SetExtractionModeToClosestPointRegion();
+    #connectivityFilter.SetExtractionModeToLargestRegion();
+    connectivityFilter.SetInputData(cutplane._data);
+    connectivityFilter.SetClosestPoint(point);
+    connectivityFilter.Update();
+    #print("number of areas: ", connectivityFilter.GetNumberOfExtractedRegions())
+    m = Mesh(connectivityFilter.GetOutput())
+
+    pr = vtk.vtkProperty()
+
+    pr.DeepCopy(cutplane.property)
+    m.SetProperty(pr)
+    m.property = pr
+    # assign the same transformation
+    m.SetOrigin(cutplane.GetOrigin())
+    m.SetScale(cutplane.GetScale())
+    m.SetOrientation(cutplane.GetOrientation())
+    m.SetPosition(cutplane.GetPosition())
+    vis = cutplane._mapper.GetScalarVisibility()
+    m.mapper().SetScalarVisibility(vis)
+    return m
+
+##Functions that cuts de mesh iteratively to calculate radius
+def calculate_radius (centerline):
+    #area = 4.0
+    points_Acum = 0 #because I move between branches I need to save the point indexes from the start of the centerline
+    
+    cs = Mesh() #where I will save all the cross section polygons
+    c = Mesh()
+    radius_array = []#where I will save the radius value at each point
+
+    for j in range(centerline.GetNumberOfCells()):#calculate the radius by branch to avoid problems at the connections between branches
+
+        numberOfCellPoints = centerline.GetCell(j).GetNumberOfPoints();# number of points of the branch
 
         for i in range (numberOfCellPoints):
-
+            
             tangent = np.zeros((3))
 
             weightSum = 0.0;
+            ##tangent with the previous point (not calculated at the first point)
             if (i>0):
-                point0 = centerline.GetPoint(i-1);
-                point1 = centerline.GetPoint(i);
+                point0 = centerline.GetPoint(points_Acum-1);
+                point1 = centerline.GetPoint(points_Acum);
 
                 distance = np.sqrt(vtk.vtkMath.Distance2BetweenPoints(point0,point1));
-                #print(distance)
+                
+                ##vector between the two points divided by the distance
+            
                 tangent[0] += (point1[0] - point0[0]) / distance;
                 tangent[1] += (point1[1] - point0[1]) / distance;
                 tangent[2] += (point1[2] - point0[2]) / distance;
                 weightSum += 1.0;
 
+
+            ##tangent with the next point (not calculated at the last one)
             if (i<numberOfCellPoints-1):
-            
                 
-                point0 = centerline.GetPoint(i);
-                point1 = centerline.GetPoint(i+1);
+                point0 = centerline.GetPoint(points_Acum);
+                point1 = centerline.GetPoint(points_Acum+1);
+
                 distance = np.sqrt(vtk.vtkMath.Distance2BetweenPoints(point0,point1));
                 tangent[0] += (point1[0] - point0[0]) / distance;
                 tangent[1] += (point1[1] - point0[1]) / distance;
@@ -55,42 +114,122 @@ def calculate_radius (centerline):
             tangent[1] /= weightSum;
             tangent[2] /= weightSum;
 
-            #plane = Grid( pos = centerline_np[i, :3],s = (3,3), res = (150,150), normal = tangent).wireframe(False)
-            cutplane = Grid(pos = centerline_np[i, :3],s = (3,3), res = (150,150), normal = tangent).cutWithMesh(msh).triangulate()
+
+            ##cut the plane with the mesh
+            #plane = Grid(pos = centerline.GetPoint(points_Acum),sx = 5, sy = 5, res = (150,150), normal = tangent)
+            cutplane = Grid(pos = centerline.GetPoint(points_Acum),s = (5,5), res = (150,150), normal = tangent).cutWithMesh(msh).triangulate()
+            ##calculate area and radius of the polygon obtained
             area = cutplane.area()
+            
+            ##create mesh with the polygon 
+            vert = cutplane.points()
+            faces = cutplane.faces()
+            m = Mesh([vert, faces])
+            
+            m = get_largest_region(m, centerline.GetPoint(points_Acum)) #keep only one region if it cuts the mesh multiple times
             ceradius = np.sqrt(area / np.pi)
             radius_array.append(ceradius)
-        
-    return np.array(radius_array)
+            if points_Acum in key_list:
+                print(points_Acum, centerline.GetPoint(points_Acum), ceradius)
+            
+            cs = merge(cs, m)
+            c = c + m
+            points_Acum += 1 #keep track of points relative to the whole centerline not just the specific branch
+           
+    ##return the array with all the radius and mesh containig the cross section polygons
+    return np.array(radius_array), cs, c
   
 
-#radius_array=calculate_radius(centerline)
+radius_array, polys, po = calculate_radius(centerline)
 
-#np.save('radius/ArteryObjAN6-2-radius.npy', radius_array)
 
+polys.addConnectivity()
+a = polys.pointdata["RegionId"]
+
+#print("a",np.max(a))
+k = {}
+##dictionary with the indexes and coordinates of the repeated points
+for key in key_list:
+    k[key] = tuple(centerline_np[key,:3])
+
+## join the points with the same coordinates, key are the coordinates and values list with the indexes
+res = {}
+for i, v in k.items():
+    res[v] = [i] if v not in res.keys() else res[v] + [i]
+print("res: ", res)
+
+la = []
+ind = []
+#print(radius_array[res.values()])
+for point in res:
+    ra = radius_array[res[point]]
+    min = np.min(ra)
+    min_i = list(radius_array).index(min)
+    print("min", min, min_i)
+    for index in res[point]:
+        print(index)
+        if radius_array[index] == min:
+            ind.append(index)
+            inn = index
+        else:
+            radius_array[index] = min
+            la.append(index)#.index(index))
+            po.GetParts().ReplaceItem(index+1, po.GetParts().GetItemAsObject(min_i+1))
+            print("removed: ", index+1, min_i)
+
+
+p = po.GetParts().GetItemAsObject(103)
+#p1 = po.GetParts().GetItemAsObject(103)
+#p2 = po.GetParts().GetItemAsObject(77)
 
 '''
-##prueba con bunny
-msh2 = Mesh(dataurl+'bunny.obj')#.scale(3).shift(0,-0.5,0.01)
-plane = Grid(resx=100, resy=100).wireframe(False)
-f = Plotter()
-f.add(plane)
-f.show(msh2)
+po.GetParts().ReplaceItem(15, po.GetParts().GetItemAsObject(7))
+po.GetParts().ReplaceItem(78, po.GetParts().GetItemAsObject(7))
 
+po.GetParts().ReplaceItem(28, po.GetParts().GetItemAsObject(99))
+po.GetParts().ReplaceItem(39, po.GetParts().GetItemAsObject(99))
 
-#corto
-cutplane = plane.clone().cutWithMesh(msh2).triangulate()
-area = cutplane.area()
-f = Plotter()
-f.show([cutplane, f"area: {area}"], axes=1)
+po.GetParts().ReplaceItem(77, po.GetParts().GetItemAsObject(103))
+po.GetParts().ReplaceItem(98, po.GetParts().GetItemAsObject(103))
 '''
 
+print(la)
+print("not remove", ind)
+contador_removidos = 0
 
-#pruebo con la malla
+#for r in la:
+ #   j = r+1-contador_removidos
+    #po.GetParts().RemoveItem(j)
+  #  po.GetParts().ReplaceItem(j, po.GetParts().GetItemAsObject(46))
+   # print(j)
+    #contador_removidos+=1
+##plot centerline, mesh and cross sections
+#1-19 remove 36-60
+#po.GetParts().RemoveItem(39)
+#po.GetParts().RemoveItem(39)
+#po.GetParts().RemoveItem(40)
+
+f = Plotter()
+f.add(centerline)
+f.show(po, msh.alpha(0.5))
+f = Plotter()
+f.add(centerline)
+#f.add(p1)
+#f.add(p2)
+f.show(p, msh.alpha(0.5))
+print(po.GetParts())
+
+#np.save("radius/" + filename + '-radius.npy', radius_array)
+#write(polys, "crossSections/" + filename + "-section.obj")
+write(polys, "crossSections/section.vtp")
+
+
+##PRUEBAS
+'''
 tangent = np.zeros((3))
-point0 = centerline.GetPoint(9);
-point1 = centerline.GetPoint(10);
-point2 = centerline.GetPoint(11);
+point0 = centerline.GetPoint(10);
+point1 = centerline.GetPoint(11);
+point2 = centerline.GetPoint(12);
 
 distance1 = np.sqrt(vtk.vtkMath.Distance2BetweenPoints(point0,point1));
 
@@ -109,12 +248,11 @@ tangent[1] /= 2.0;
 tangent[2] /= 2.0;
 
 #m = msh.cutWithPlane(origin = centerline_np[10, :3], normal=(1,1,1))
-plane = Grid( pos = centerline_np[10, :3], s = (3, 3), res = (150,150),normal = tangent).wireframe(False)
+plane = Grid( point1, s = (15, 15), res = (150,150),normal = tangent).wireframe(False)
 f = Plotter()
 f.add(plane)
 f.add(msh)
 f.show()
-
 
 
 cutplane = plane.cutWithMesh(msh).triangulate()
@@ -122,58 +260,16 @@ f = Plotter()
 f.add(cutplane)
 f.add(msh)
 area = cutplane.area()
-print(area)
+#print(area)
 f = Plotter()
 f.show([cutplane, f"area: {area}"], axes=1)
 
 
+#mesh2 = cutplane.extractLargestRegion()
+#f = Plotter()
+#f.show(cutplane)
 
-plane2 = Grid( pos = centerline_np[15, :3], s = (3, 3), res = (150,150),normal = tangent).cutWithMesh(msh).triangulate()
-vert = cutplane.points()
-faces = cutplane.faces()
-print(vert)
-vert2 = plane2.points()
-faces2 = plane2.faces()
-print(vert2)
-me1 = Mesh([vert, faces])
-me2 = Mesh([vert2, faces2])
+    
+m =get_largest_region(cutplane, point1)
 f = Plotter()
-f.show(Mesh([me2, me1]))
-
-f = read_vtk("crossSections/ArteryObjAN1-0-section.vtp")
-print(f)
-
-sections = vtk.vtkPolyData()
-
-points = vtk.vtkPoints()
-
-for point in cutplane.points():
-    points.InsertNextPoint(point)
-# Add the points to the dataset
-sections.SetVerts(points)
-sections.SetFaces(cutplane.feces())
-
-    
-   
-point_count = 0
-cells = vtk.vtkCellArray()
-
-'''
-for i in range(len(centerline_np)): 
-    number_points = centerline_np.shape[0]
-    polyLine = vtk.vtkPolyLine()
-    polyLine.GetPointIds().SetNumberOfIds(number_points-1)
-    
-        j = 0
-        for k in range(point_count+1, point_count+number_points):
-            polyLine.GetPointIds().SetId(j, k)
-            j += 1
-        point_count+=number_points
-        cells.InsertNextCell(polyLine)
-'''
-
-    
-    #print("l0", polyData.GetCell(0))
-    #print("l1", polyData.GetCell(1))
-f = Plotter()
-f.show(sections)
+f.show(m)'''
