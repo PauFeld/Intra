@@ -36,7 +36,7 @@ crear grafo a partir de obj+radio(migue)
 
 5- armo grafo con pruebaparser
 
-
+1081
 129-17 no extrae centerline
 134-0
 174-6
@@ -51,8 +51,10 @@ crear grafo a partir de obj+radio(migue)
 26-18
 28-0
 
-
 1-16 la centerline esta fea, con advancement ratio 1.1 queda mejor
 
 problema al armar grafo:
 1-10 componentes conexas
+
+11-15
+170-19

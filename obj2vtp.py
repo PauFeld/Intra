@@ -1,10 +1,10 @@
 import vtk
 
 import os
-files1 = os.listdir('.')
+files = os.listdir('.')
 #print(files1)
-files = ["ArteryObjAN1-0.obj", "ArteryObjAN1-2.obj"]
-
+#files = ["ArteryObjAN1-0.obj", "ArteryObjAN1-2.obj"]
+'''
 print("running...")
 def read_obj(file):
     reader = vtk.vtkOBJReader()
@@ -12,7 +12,7 @@ def read_obj(file):
     reader.Update()
     return reader.GetOutput()
 
-for file in files1:
+for file in files:
     if file.split(".")[1] == "obj":
         data = read_obj(file)
         #print(data)
@@ -24,14 +24,14 @@ for file in files1:
 
 
 '''
-filename = 'ArteryObjAN1-0.obj'
+filename = 'ArteryObjAN1-14.obj'
 reader = vtk.vtkOBJReader()
 reader.SetFileName(filename)
 reader.Update()
 data = reader.GetOutput()
 print(data)
 writer = vtk.vtkXMLPolyDataWriter()
-writer.SetFileName("Artery.vtp");
+writer.SetFileName("ArteryObjAN1-14.vtp");
 writer.SetInputData(data);
 writer.Write()
-'''
+
