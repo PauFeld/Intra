@@ -5,7 +5,6 @@ from vec3 import Vec3
 
 def calcularGrafoYArbol( fileObj, fileRadios ):
     radios = np.load(fileRadios)
-    #print(radios)
     verticesCrudos = []
     vertices = []
     lineas = []
