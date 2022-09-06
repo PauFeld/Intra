@@ -77,8 +77,6 @@ root = tree.insert(root, 10, 5, 1)
 #print (root.tag, root.radius)
 tree.insert(root, 6, posicion=5, tag=2)
 tree.printTree(root)
-
-
 '''
 root = None
 tree = Tree()
@@ -121,7 +119,7 @@ for node in l_nodes[1:]:
     posicion = grafo.nodes[tag]['posicion'].toNumpy()
     tree.insert(root, tag, radius, posicion)
 
-print("estoy aqui")
+    
 tree.printTree(root)
 
 '''
@@ -130,9 +128,6 @@ tree = Tree()
 root = tree.insert(root,10,2,2)
 print (root)
 tree.insert(root,20,2,2)
-
-
-
-
 print ("Traverse Inorder")
 tree.printTree(root)'''
+
