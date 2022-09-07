@@ -113,23 +113,6 @@ class Node:
         # return cloned root node
         return root_copy
 
-    def cloneWithoutZero(self, root):
-         
-        # base case
-        if root is None:
-            return None
-    
-        # create a new node with the same data as the root node
-        if root.data != 0:
-            root_copy = Node(root.data, root.radius)
-    
-            #    clone the left and right subtree
-            root_copy.left = self.cloneBinaryTree(root.left)
-            root_copy.right = self.cloneBinaryTree(root.right)
-    
-            # return cloned root node
-            return root_copy
-
     def height(self, root):
     # Check if the binary tree is empty
         if root is None:
@@ -156,48 +139,9 @@ class Node:
         for i in range(1, h+1):
             self.printCurrentLevel(root, i)
 
-    
-    def CurrentLevel(self, root, level, l, flag):
-        
-        if root is None:
-            return 
-        if level == 1:
-            #print(root.data)
-            if flag == 2:
-                if root.data == 0:
-                    l.append('#')
-                else:
-                    l.append(root.radius)
-            
-            else:
-                if root.data == 0 and root.prob is None:
-                    l.append('#')
-                else:
-                    if flag == 0: #number of child
-                        l.append(root.childs())
-                    if flag == 1: #probability
-                        l.append(root.prob)
-                    
-            return l
-
-        elif level > 1:
-            if root.left is None:
-                root.left = Node(0,0)
-            if root.right is None:
-                root.right = Node(0,0)
-            self.CurrentLevel(root.left, level-1, l, flag)
-            self.CurrentLevel(root.right, level-1, l, flag)
-
-    def LevelOrder(self, root, flag):
-        h = self.height(root)
-        l = []
-        for i in range(1, h+1):
-            self.CurrentLevel(root, i, l, flag)
-        return l
 
     
     def count_nodes(self, root, counter):
-        
         if   root is not None:
             self.count_nodes(root.left, counter)
             counter.append(root.data)
@@ -218,7 +162,6 @@ class Node:
 
         ret = ['']
         post_order(root)
-
         return ret[0][:-1]  # remove last ,
 
     def search(self, node, data):
@@ -258,16 +201,13 @@ def deserialize(data):
         #breakpoint()
         radius = node[1]
         #print("radius", radius)
-        '''
         rad = radius.split(",")
         rad [0] = rad[0].replace('[','')
         rad [3] = rad[3].replace(']','')
         r = []
         for value in rad:
             r.append(float(value))
-        r = torch.tensor(r, device=device)
-        '''
-        r =[float(num) for num in radius if num.isdigit()]
+        #r =[float(num) for num in radius if num.isdigit()]
         r = torch.tensor(r, device=device)
         #breakpoint()
         root = createNode(data, r)
@@ -288,12 +228,12 @@ class LeafEncoder(nn.Module):
     
     def __init__(self):
         super(LeafEncoder, self).__init__()
-        self.radius_feature = nn.Linear(3, 32)
+        self.radius_feature = nn.Linear(4, 32)
         self.tanh = nn.Tanh()
 
     def forward(self, input):
         rad = torch.tensor(input.radius)
-        rad = torch.reshape(rad, (1,3)).to(device)
+        rad = torch.reshape(rad, (1,4)).to(device)
         radius = self.radius_feature(rad)
         radius = self.tanh(radius)
         feature = radius
@@ -304,7 +244,7 @@ class NonLeafEncoder(nn.Module):
     
     def __init__(self):
         super(NonLeafEncoder, self).__init__()
-        self.radius_feature = nn.Linear(3,32)
+        self.radius_feature = nn.Linear(4,32)
         self.left = nn.Linear(32, 32)
         self.right = nn.Linear(32, 32)
         self.encoder = nn.Linear(64, 32)
@@ -313,7 +253,7 @@ class NonLeafEncoder(nn.Module):
 
     def forward(self, input, left_input, right_input):
         
-        radius = self.radius_feature(torch.tensor(input.radius).reshape(1,3).to(device))
+        radius = self.radius_feature(torch.tensor(input.radius).reshape(1,4).to(device))
         radius = self.tanh(radius)
         context = self.right(right_input)
         if left_input is not None:
@@ -374,7 +314,7 @@ class InternalDecoder(nn.Module):
         self.mlp = nn.Linear(32,16)
         self.mlp_right = nn.Linear(16,32)
         self.tanh = nn.Tanh()
-        self.mlp2 = nn.Linear(16,3)
+        self.mlp2 = nn.Linear(16,4)
 
     def forward(self, parent_feature):
         vector = self.mlp(parent_feature)
@@ -393,7 +333,7 @@ class BifurcationDecoder(nn.Module):
         self.mlp = nn.Linear(32,32)
         self.mlp_left = nn.Linear(32,32)
         self.mlp_right = nn.Linear(32,32)
-        self.mlp2 = nn.Linear(32,3)
+        self.mlp2 = nn.Linear(32,4)
         self.tanh = nn.Tanh()
 
     def forward(self, parent_feature):
@@ -414,7 +354,7 @@ class featureDecoder(nn.Module):
         super(featureDecoder, self).__init__()
         self.mlp = nn.Linear(32,16)
         self.tanh = nn.Tanh()
-        self.mlp2 = nn.Linear(16,3)
+        self.mlp2 = nn.Linear(16,4)
 
     def forward(self, parent_feature):
         vector = self.mlp(parent_feature)
@@ -442,9 +382,10 @@ def calcularLossEstructura(cl_p, original):
             vector = [0, 1, 0]
         if original.childs() == 2:
             vector = [0, 0, 1]
-    #breakpoint()
-    l2 = nn.MSELoss()
-    return l2(torch.tensor(vector, device=device, dtype = torch.float), cl_p.reshape(3))
+    
+    ce = nn.CrossEntropyLoss()
+    #l2 = nn.MSELoss()
+    return ce(torch.tensor(vector, device=device, dtype = torch.float).reshape(1,3), cl_p)
 
 def calcularLossAtributo(nodo, radio):
 
@@ -453,7 +394,7 @@ def calcularLossAtributo(nodo, radio):
     
     else:
         
-        radio = radio.reshape(3)
+        radio = radio.reshape(4)
         l2 = nn.MSELoss()
         
         return l2(nodo.radius, radio)
@@ -489,7 +430,7 @@ def decode_structure_fold(v, root, weight):
                     nodoSiguiente = None
             else:
                 nodoSiguiente = None
-            d.right = decode_node(right, count_level, nodoSiguiente, weight * 0.7 )
+            d.right = decode_node(right, count_level, nodoSiguiente, 0.8*weight )
             
             return d
         elif label == 2 and createNode.count <= 22:
@@ -517,8 +458,8 @@ def decode_structure_fold(v, root, weight):
                 nodoSiguienteRight = None
                 nodoSiguienteLeft = None
 
-            d.right = decode_node(right, count_level, nodoSiguienteRight, weight * 0.7)
-            d.left = decode_node(left, count_level, nodoSiguienteLeft, weight * 0.7)
+            d.right = decode_node(right, count_level, nodoSiguienteRight, 0.8*weight)
+            d.left = decode_node(left, count_level, nodoSiguienteLeft, 0.8*weight )
            
             return d
         
@@ -529,7 +470,7 @@ def decode_structure_fold(v, root, weight):
     return dec
         
 
-t_list = ['test5.dat', 'test4.dat', 'test3.dat']
+t_list = ['ArteryObjAN1-2.dat']
 class tDataset(Dataset):
     def __init__(self, transform=None):
         self.names = t_list
@@ -549,7 +490,7 @@ data_loader = DataLoader(dataset, batch_size=1, shuffle=True, drop_last=True)
 
 def main():
 
-    epochs = 1000
+    epochs = 5000
     learning_rate = 1e-3
 
     leaf_encoder_opt = torch.optim.Adam(leafenc.parameters(), lr=learning_rate)
@@ -584,47 +525,8 @@ def main():
             loss_list = decoded.traverseInorderLoss(decoded, l)
             #breakpoint()
             total_loss = sum(loss_list)
-            '''
-            #print("decoded",decoded)
-            ce_loss = nn.CrossEntropyLoss()
-            mse_loss = nn.MSELoss()
-            
-            count = []
-            in_n_nodes = len(d_data.count_nodes(d_data, count))
-            #print("input n nodes: ", in_n_nodes)
-            count = []
-            out_n_nodes = len(decoded.count_nodes(decoded, count))
-            
-            #print("output n nodes: ", out_n_nodes)
-
-            data_copy = d_data.cloneBinaryTree(d_data) #en las copias quedan sin modificar
-            decoded_copy = decoded.cloneBinaryTree(decoded)
-
-            in_radius_array = d_data.LevelOrder(d_data, 2)
-            out_radius_array = decoded.LevelOrder(decoded, 2)
-           
-            radius_array = [(a, b) for a, b in zip(in_radius_array, out_radius_array) if a '#']
-            radius_array = list(zip(*radius_array))
-            try:
-                mse = mse_loss(torch.cat(radius_array[1]), torch.tensor(radius_array[0]).to(device) ) 
-            except:
+            if total_loss < 0:
                 breakpoint()
-            
-            data_copy2 = data_copy.cloneBinaryTree(data_copy) #en las copias quedan sin modificar
-            decoded_copy2 = decoded_copy.cloneBinaryTree(decoded_copy)
-            list_original = data_copy.LevelOrder(data_copy, 0) #armo lista con la cantidad de hijos de cada nodo para el arbol original
-            list_original = [ 3 if item == '#' else item for item in list_original]
-            
-            list_decoded = decoded.LevelOrder(decoded, 1) #armo lista con las probabilidades que da el clasificador para el arbol decodeado
-            
-            childs_array = [(a, b) for a, b in zip(list_original, list_decoded) if  b != '#']
-            childs_array = list(zip(*childs_array))
-            ce = ce_loss(torch.cat(childs_array[1]), torch.tensor(childs_array[0]).long().to(device) ) 
-            
-            multiplicador = (in_n_nodes/len(childs_array[0]))-1
-            total_loss = ce  + 0.001*mse
-
-            '''
             
             # Do parameter optimization
             leaf_encoder_opt.zero_grad()
@@ -661,8 +563,8 @@ def main():
     input.traverseInorder(input)
     encoded = encode_structure_fold(input).to(device)
     print("encoded", enc_fold_nodes)
-    #decoded = decode_structure_fold(encoded)
-    #decoded.traverseInorder(decoded)
+    decoded = decode_structure_fold(encoded, d_data, 1)
+    decoded.traverseInorder(decoded)
 
     breakpoint()
 
