@@ -7,6 +7,7 @@ from torch import nn
 from torch.utils.data import Dataset, DataLoader
 import os
 import numpy as np
+from vec3 import Vec3
 
 
 def count_fn(f):
@@ -176,6 +177,60 @@ class Node:
         else:
             return self.search(node.left, data)
 
+
+def traverse(root, tree):
+       
+        if root is not None:
+            traverse(root.left, tree)
+            tree.append((root.radius, root.data))
+            traverse(root.right, tree)
+            return tree
+
+def traverse_conexiones(root, tree):
+        """
+        traverse function will print all the node in the tree.
+        """
+        if root is not None:
+            traverse_conexiones(root.left, tree)
+            if root.right is not None:
+                tree.append((root.data, root.right.data))
+            if root.left is not None:
+                tree.append((root.data, root.left.data))
+            traverse_conexiones(root.right, tree)
+            return tree
+def arbolAGrafo (nodoRaiz):
+    
+    conexiones = []
+    lineas = traverse_conexiones(nodoRaiz, conexiones)
+    tree = []
+    tree = traverse(nodoRaiz, tree)
+
+    vertices = []
+    verticesCrudos = []
+    for node in tree:
+        #breakpoint()
+        vertice = node[0][0][:3]
+        rad = node[0][0][-1]
+        num = node[1]
+        
+        #vertices.append((num, {'posicion': Vec3( vertice[0], vertice[1], vertice[2]), 'radio': rad} ))
+        vertices.append((len(verticesCrudos),{'posicion': Vec3( vertice[0], vertice[1], vertice[2]), 'radio': rad}))
+        verticesCrudos.append(vertice)
+
+
+    G = nx.Graph()
+    G.add_nodes_from( vertices )
+    G.add_edges_from( lineas )
+    
+    a = nx.get_node_attributes(G, 'posicion')
+   
+    #for key in a.keys():
+    #    a[key] = a[key].toNumpy()[0:2]
+
+    #plt.figure(figsize=(20,10))
+    #nx.draw(G, pos = a, node_size = 150, with_labels = True)
+    #plt.show()
+    return G
 
 @count_fn
 def createNode(data, radius, position = None, left = None, right = None, cl_prob = None):
@@ -373,6 +428,7 @@ nodeClassifier = NodeClassifier()
 nodeClassifier = nodeClassifier.to(device)
 
 def calcularLossEstructura(cl_p, original):
+    #breakpoint()
     if original is None:
         return 0
     else:
@@ -384,8 +440,9 @@ def calcularLossEstructura(cl_p, original):
             vector = [0, 0, 1]
     
     ce = nn.CrossEntropyLoss()
-    #l2 = nn.MSELoss()
-    return ce(torch.tensor(vector, device=device, dtype = torch.float).reshape(1,3), cl_p)
+    l2 = nn.MSELoss()
+    #breakpoint()
+    return ce(cl_p, torch.tensor(vector, device=device, dtype = torch.float).reshape(1, 3))
 
 def calcularLossAtributo(nodo, radio):
 
@@ -397,7 +454,7 @@ def calcularLossAtributo(nodo, radio):
         radio = radio.reshape(4)
         l2 = nn.MSELoss()
         
-        return l2(nodo.radius, radio)
+        return l2(nodo.radius, radio )
 
 def decode_structure_fold(v, root, weight):
     def decode_node(v, count_level, node, weight):
@@ -405,7 +462,7 @@ def decode_structure_fold(v, root, weight):
         _, label = torch.max(cl, 1)
         label = label.data
         #print("label", label)
-        if label == 0 and createNode.count <= 22: ##output del classifier
+        if label == 0 and createNode.count <= 25: ##output del classifier
             count_level.append("1")
             #if node.childs() != 0:
             lossEstructura = calcularLossEstructura(cl, node)
@@ -413,7 +470,7 @@ def decode_structure_fold(v, root, weight):
 
             lossAtrs = calcularLossAtributo( node, radio )
             return createNode(1,radio, cl_prob = weight * (lossEstructura + lossAtrs))
-        elif label == 1 and createNode.count <= 22:
+        elif label == 1 and createNode.count <= 25:
             right, radius = internaldec(v)
             #if node.childs() != 1:
             lossEstructura = calcularLossEstructura(cl, node)
@@ -430,10 +487,10 @@ def decode_structure_fold(v, root, weight):
                     nodoSiguiente = None
             else:
                 nodoSiguiente = None
-            d.right = decode_node(right, count_level, nodoSiguiente, 0.8*weight )
+            d.right = decode_node(right, count_level, nodoSiguiente, 0.5*weight )
             
             return d
-        elif label == 2 and createNode.count <= 22:
+        elif label == 2 and createNode.count <= 25:
             left, right, radius = bifdec(v)
             #if node.childs() != 2:
             lossEstructura = calcularLossEstructura(cl, node)
@@ -458,19 +515,26 @@ def decode_structure_fold(v, root, weight):
                 nodoSiguienteRight = None
                 nodoSiguienteLeft = None
 
-            d.right = decode_node(right, count_level, nodoSiguienteRight, 0.8*weight)
-            d.left = decode_node(left, count_level, nodoSiguienteLeft, 0.8*weight )
+            d.right = decode_node(right, count_level, nodoSiguienteRight, 0.5*weight)
+            d.left = decode_node(left, count_level, nodoSiguienteLeft, 0.5*weight )
            
             return d
-        
         
     count_level = []
     createNode.count = 0
     dec = decode_node(v, count_level, root, weight)
     return dec
+
+def numerar_nodos(root, count):
+    if root is not None:
+        numerar_nodos(root.left, count)
+        root.data = len(count)
+        count.append(1)
+        numerar_nodos(root.right, count)
+        return 
         
 
-t_list = ['ArteryObjAN1-2.dat']
+t_list = ['test6.dat']
 class tDataset(Dataset):
     def __init__(self, transform=None):
         self.names = t_list
@@ -490,7 +554,8 @@ data_loader = DataLoader(dataset, batch_size=1, shuffle=True, drop_last=True)
 
 def main():
 
-    epochs = 5000
+    epochs = 9500
+
     learning_rate = 1e-3
 
     leaf_encoder_opt = torch.optim.Adam(leafenc.parameters(), lr=learning_rate)
@@ -515,6 +580,8 @@ def main():
         for data in data_loader:
             
             d_data = deserialize(data[0])
+
+
             enc_fold_nodes = encode_structure_fold(d_data).to(device)
             
             #print("encoded", enc_fold_nodes)
@@ -564,7 +631,13 @@ def main():
     encoded = encode_structure_fold(input).to(device)
     print("encoded", enc_fold_nodes)
     decoded = decode_structure_fold(encoded, d_data, 1)
+    count = []
+    numerar_nodos(decoded, count)
     decoded.traverseInorder(decoded)
+    G = arbolAGrafo (decoded)
+    plt.figure()
+    nx.draw(G, node_size = 150, with_labels = True)
+    plt.show()
 
     breakpoint()
 
