@@ -532,9 +532,52 @@ def numerar_nodos(root, count):
         count.append(1)
         numerar_nodos(root.right, count)
         return 
-        
 
-t_list = ['test6.dat']
+
+def traversefeatures(root, features):
+       
+    if root is not None:
+        traversefeatures(root.left, features)
+        features.append(root.radius)
+        traversefeatures(root.right, features)
+        return features
+
+def norm(root, minx, miny, minz, minr, maxx, maxy, maxz, maxr):
+    #breakpoint()
+    
+    if root is not None:
+        mx = minx.clone().detach()
+        my = miny.clone().detach()
+        mz = minz.clone().detach()
+        mr = minr.clone().detach()
+        Mx = maxx.clone().detach()
+        My = maxy.clone().detach()
+        Mz = maxz.clone().detach()
+        Mr = maxr.clone().detach()
+
+        root.radius[0] = (root.radius[0] - minx)/(maxx - minx)
+        root.radius[1] = (root.radius[1] - miny)/(maxy - miny)
+        root.radius[2] = (root.radius[2] - minz)/(maxz - minz)
+        root.radius[3] = (root.radius[3] - minr)/(maxr - minr)
+        
+        norm(root.left, mx, my, mz, mr, Mx, My, Mz, Mr)
+        norm(root.right, mx, my, mz, mr, Mx, My, Mz, Mr)
+        return 
+
+def normalize_features(root):
+    features = []
+    features = traversefeatures(root, features)
+    
+    x = [tensor[0] for tensor in features]
+    y = [tensor[1] for tensor in features]
+    z = [tensor[2] for tensor in features]
+    r = [tensor[3] for tensor in features]
+ 
+    norm(root, min(x), min(y), min(z), min(r), max(x), max(y), max(z), max(r))
+
+    return 
+        
+t_list = ['ArteryObjAN1-2.dat']
 class tDataset(Dataset):
     def __init__(self, transform=None):
         self.names = t_list
@@ -554,7 +597,7 @@ data_loader = DataLoader(dataset, batch_size=1, shuffle=True, drop_last=True)
 
 def main():
 
-    epochs = 9500
+    epochs = 3000
 
     learning_rate = 1e-3
 
@@ -580,7 +623,7 @@ def main():
         for data in data_loader:
             
             d_data = deserialize(data[0])
-
+            normalize_features(d_data)
 
             enc_fold_nodes = encode_structure_fold(d_data).to(device)
             
@@ -626,7 +669,7 @@ def main():
     #print(out_n_nodes)
     
     input = deserialize(iter(data_loader).next()[0])
-    print(input)
+    normalize_features(input)
     input.traverseInorder(input)
     encoded = encode_structure_fold(input).to(device)
     print("encoded", enc_fold_nodes)
@@ -634,6 +677,10 @@ def main():
     count = []
     numerar_nodos(decoded, count)
     decoded.traverseInorder(decoded)
+    G = arbolAGrafo (input)
+    plt.figure()
+    nx.draw(G, node_size = 150, with_labels = True)
+    plt.show()
     G = arbolAGrafo (decoded)
     plt.figure()
     nx.draw(G, node_size = 150, with_labels = True)
