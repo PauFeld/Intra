@@ -6,7 +6,7 @@ from vec3 import Vec3
 import matplotlib.pyplot as plt
 
 
-filename = "ArteryObjAN1-2"
+filename = "ArteryObjAN1-0"
 
 grafo = pickle.load(open('grafos/' +filename + '-grafo.gpickle', 'rb'))
 
@@ -59,9 +59,9 @@ serial = nodoRaiz.serialize(nodoRaiz)
 print("serialized", nodoRaiz.serialize(nodoRaiz))
 
 #write serialized string to file
-#file = open("./Trees/ArteryObjAN1-2.dat", "w")
-#file.write(serial)
-#file.close() 
+file = open("./Trees/ArteryObjAN1-0.dat", "w")
+file.write(serial)
+file.close() 
 
 def traverse(root, tree):
        
