@@ -488,7 +488,7 @@ def calcularLossAtributo(nodo, radio):
     if nodo is None:
         #return 0 #es cuando creo un nodo que esta "mal ubicado"
 
-        return torch.tensor(1, device=device)
+        return torch.tensor(1., device=device, requires_grad = True)
         ##return 1 y despues calculo otra loss con la suma de estos valores
     
     else:
@@ -644,7 +644,7 @@ data_loader = DataLoader(dataset, batch_size=1, shuffle=True, drop_last=True)
 
 def main():
 
-    epochs = 2000
+    epochs = 100
     learning_rate = 1e-3
 
     leaf_encoder_opt = torch.optim.Adam(leafenc.parameters(), lr=learning_rate)
@@ -691,20 +691,26 @@ def main():
             ce_loss_list = decoded.traverseInorderCE(decoded, l)
             l = []
             loss_list = decoded.traverseInorderLoss(decoded, l)
-    
+            #print("mse", mse_loss_list)
+            #print("ce", ce_loss_list)
+            
             #for i in loss_list:
             #    if i == 1:
             #        breakpoint()
-            
+            '''
             l3 = torch.tensor(0, device = device)
             for element in loss_list:
                 if element is not None:
                     #breakpoint()
                     torch.add (l3, element)
+                    '''
             mse_loss = sum(mse_loss_list)
+            #breakpoint()
             ce_loss = sum(ce_loss_list)
+            loss_l3 = [a for a in loss_list if a is not None]
+            l3 = sum(loss_l3)
             total_loss = mse_loss + ce_loss + l3
-            
+            #print("l3",l3)
             # Do parameter optimization
             leaf_encoder_opt.zero_grad()
             non_leaf_encoder_opt.zero_grad()
@@ -735,7 +741,7 @@ def main():
             #lr_list [-1] += leaf_scheduler.get_last_lr()[-1]
             l3_list [-1] += l3
 
-        if epoch % 50 == 0:
+        if epoch % 1 == 0:
             print('Epoch [%d / %d] average reconstruction error: %f mse: %f, ce: %f, l3: %f' % (epoch+1, epochs, train_loss_avg[-1], mse_avg[-1], ce_avg[-1], l3_list[-1]))
 
     #print(decoded_copy2.height(decoded_copy2))
