@@ -504,7 +504,7 @@ def decode_structure_fold(v, root, weight, weight_mult):
         _, label = torch.max(cl, 1)
         label = label.data
         #print("label", label)
-        if label == 0 and createNode.count <= 40: ##output del classifier
+        if label == 0 and createNode.count <= 70: ##output del classifier
             #if node.childs() != 0:
             lossEstructura = calcularLossEstructura(cl, node)
             radio = featuredec(v)
@@ -512,7 +512,7 @@ def decode_structure_fold(v, root, weight, weight_mult):
             lossAtrs = calcularLossAtributo( node, radio )
             #return createNode(1,radio, cl_prob = weight * (lossEstructura + lossAtrs))
             return createNode(1,radio, ce = weight*lossEstructura,  mse = lossAtrs)
-        elif label == 1 and createNode.count <= 40:
+        elif label == 1 and createNode.count <= 70:
             right, radius = internaldec(v)
             #if node.childs() != 1:
             lossEstructura = calcularLossEstructura(cl, node)
@@ -538,7 +538,7 @@ def decode_structure_fold(v, root, weight, weight_mult):
             #weight_mult = weight_mult*1.1
             
             return d
-        elif label == 2 and createNode.count <= 40:
+        elif label == 2 and createNode.count <= 70:
             left, right, radius = bifdec(v)
             #if node.childs() != 2:
             lossEstructura = calcularLossEstructura(cl, node)
@@ -595,7 +595,6 @@ def traversefeatures(root, features):
         return features
 
 def norm(root, minx, miny, minz, minr, maxx, maxy, maxz, maxr):
-    #breakpoint()
     
     if root is not None:
         mx = minx.clone().detach()
@@ -629,7 +628,7 @@ def normalize_features(root):
 
     return 
         
-t_list = ['ArteryObjAN1-2.dat']
+t_list = ['ArteryObjAN1-2.dat','ArteryObjAN1-0.dat','ArteryObjAN1-7.dat', 'ArteryObjAN1-4.dat']
 #t_list = ['test6.dat']
 class tDataset(Dataset):
     def __init__(self, transform=None):
@@ -650,7 +649,7 @@ data_loader = DataLoader(dataset, batch_size=1, shuffle=True, drop_last=True)
 
 def main():
 
-    epochs = 4000
+    epochs = 10000
     learning_rate = 1e-3
 
     leaf_encoder_opt = torch.optim.Adam(leafenc.parameters(), lr=learning_rate)
@@ -680,9 +679,6 @@ def main():
         train_loss_avg.append(0)
         ce_avg.append(0)
         mse_avg.append(0)
-        #l1_avg.append(0)
-        #lr_list.append(0)
-        #l3_list.append(0)
         weight = 1
         batches = 0
         for data in data_loader:
@@ -699,19 +695,7 @@ def main():
             ce_loss_list = decoded.traverseInorderCE(decoded, l)
             l = []
             loss_list = decoded.traverseInorderLoss(decoded, l)
-            #print("mse", mse_loss_list)
-            #print("ce", ce_loss_list)
             
-            #for i in loss_list:
-            #    if i == 1:
-            #        breakpoint()
-            '''
-            l3 = torch.tensor(0, device = device)
-            for element in loss_list:
-                if element is not None:
-                    #breakpoint()
-                    torch.add (l3, element)
-                    '''
             mse_loss = sum(mse_loss_list)
             
             ce_loss = sum(ce_loss_list)
@@ -720,7 +704,7 @@ def main():
             loss_l3 = [a for a in ce_loss_list if a == 0]
             l2 = [a for a in ce_loss_list if a != 0]
             #l3 = sum(loss_l3)
-            total_loss = (0.2*mse_loss + ce_loss)*(in_n_nodes -len(l2) +1) 
+            total_loss =mse_loss + ce_loss*(in_n_nodes -len(l2) +1) 
             #print("l3",l3)
             # Do parameter optimization
             leaf_encoder_opt.zero_grad()
@@ -770,12 +754,6 @@ def main():
 
             #print("l3", l3)
             
-
-    #print(decoded_copy2.height(decoded_copy2))
-    #decoded_copy2.traverseInorder(decoded_copy2)
-    #copy = decoded_copy2.cloneWithoutZero(decoded_copy2) ## para cuando quedan nodos vacios en el arbol decodeado, no deberia pasar si esta bien entrenado
-    #print(out_n_nodes)
-    
     input = deserialize(iter(data_loader).next()[0])
     normalize_features(input)
     input.traverseInorder(input)
