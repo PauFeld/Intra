@@ -494,17 +494,17 @@ def calcularLossAtributo(nodo, radio):
     else:
         
         radio = radio.reshape(4)
-        l2 = nn.MSELoss(reduction = 'sum')
+        l2 = nn.MSELoss(reduction = 'mean')
        
         return l2(nodo.radius, radio )
 
-def decode_structure_fold(v, root, weight):
-    def decode_node(v, node, weight):
+def decode_structure_fold(v, root, weight, weight_mult):
+    def decode_node(v, node, weight, weight_mult):
         cl = nodeClassifier(v)
         _, label = torch.max(cl, 1)
         label = label.data
         #print("label", label)
-        if label == 0 and createNode.count <= 70: ##output del classifier
+        if label == 0 and createNode.count <= 40: ##output del classifier
             #if node.childs() != 0:
             lossEstructura = calcularLossEstructura(cl, node)
             radio = featuredec(v)
@@ -512,7 +512,7 @@ def decode_structure_fold(v, root, weight):
             lossAtrs = calcularLossAtributo( node, radio )
             #return createNode(1,radio, cl_prob = weight * (lossEstructura + lossAtrs))
             return createNode(1,radio, ce = weight*lossEstructura,  mse = lossAtrs)
-        elif label == 1 and createNode.count <= 70:
+        elif label == 1 and createNode.count <= 40:
             right, radius = internaldec(v)
             #if node.childs() != 1:
             lossEstructura = calcularLossEstructura(cl, node)
@@ -520,9 +520,9 @@ def decode_structure_fold(v, root, weight):
             #breakpoint()
             #d = createNode(1, radius, cl_prob = weight * (lossEstructura + lossAtrs ) )
             if node is None:
-                d = createNode(1, radius, cl_prob = lossAtrs , ce = weight*lossEstructura, mse= torch.tensor(0, device=device)) 
+                d = createNode(1, radius, cl_prob = lossAtrs , ce = lossEstructura, mse= torch.tensor(0, device=device)) 
             else:
-                d = createNode(1, radius, ce = weight*lossEstructura, mse = lossAtrs ) 
+                d = createNode(1, radius, ce = lossEstructura, mse = lossAtrs ) 
             
              
             if not node is None:
@@ -532,10 +532,13 @@ def decode_structure_fold(v, root, weight):
                     nodoSiguiente = None
             else:
                 nodoSiguiente = None
-            d.right = decode_node(right, nodoSiguiente, 0.9*weight )
+
+            
+            d.right = decode_node(right, nodoSiguiente, weight_mult*weight, weight_mult)
+            #weight_mult = weight_mult*1.1
             
             return d
-        elif label == 2 and createNode.count <= 70:
+        elif label == 2 and createNode.count <= 40:
             left, right, radius = bifdec(v)
             #if node.childs() != 2:
             lossEstructura = calcularLossEstructura(cl, node)
@@ -544,9 +547,9 @@ def decode_structure_fold(v, root, weight):
 
             #d = createNode(1, radius, cl_prob = weight * (lossEstructura + lossAtrs ))
             if node is None:
-                d = createNode(1, radius, cl_prob = lossAtrs, ce = weight*lossEstructura, mse = torch.tensor(0, device=device))
+                d = createNode(1, radius, cl_prob = lossAtrs, ce = lossEstructura, mse = torch.tensor(0, device=device))
             else:
-                d = createNode(1, radius, ce = weight*lossEstructura, mse = lossAtrs )
+                d = createNode(1, radius, ce = lossEstructura, mse = lossAtrs )
             
             if not node is None: #el nodo existe, me fijo si tiene hijo der/izq
                 if not node.right is None:
@@ -562,14 +565,16 @@ def decode_structure_fold(v, root, weight):
                 nodoSiguienteRight = None
                 nodoSiguienteLeft = None
 
-            d.right = decode_node(right, nodoSiguienteRight, 0.9*weight)
-            d.left = decode_node(left, nodoSiguienteLeft, 0.9*weight )
+            
+            d.right = decode_node(right, nodoSiguienteRight, weight_mult*weight, weight_mult)
+            d.left = decode_node(left, nodoSiguienteLeft, weight_mult*weight, weight_mult )
+            #weight_mult = weight_mult*1.1
            
             return d
         
     
     createNode.count = 0
-    dec = decode_node(v, root, weight)
+    dec = decode_node(v, root, weight, weight_mult)
     return dec
 
 def numerar_nodos(root, count):
@@ -624,7 +629,8 @@ def normalize_features(root):
 
     return 
         
-t_list = ['ArteryObjAN1-7.dat', 'ArteryObjAN1-0.dat']
+t_list = ['ArteryObjAN1-2.dat']
+#t_list = ['test6.dat']
 class tDataset(Dataset):
     def __init__(self, transform=None):
         self.names = t_list
@@ -644,7 +650,7 @@ data_loader = DataLoader(dataset, batch_size=1, shuffle=True, drop_last=True)
 
 def main():
 
-    epochs = 100
+    epochs = 4000
     learning_rate = 1e-3
 
     leaf_encoder_opt = torch.optim.Adam(leafenc.parameters(), lr=learning_rate)
@@ -669,21 +675,23 @@ def main():
     l1_avg = []
     lr_list = []
     l3_list = []
+    weight_mult=0.1
     for epoch in range(epochs):
         train_loss_avg.append(0)
         ce_avg.append(0)
         mse_avg.append(0)
-        l1_avg.append(0)
-        lr_list.append(0)
-        l3_list.append(0)
+        #l1_avg.append(0)
+        #lr_list.append(0)
+        #l3_list.append(0)
         weight = 1
+        batches = 0
         for data in data_loader:
             
             d_data = deserialize(data[0])
             normalize_features(d_data)
 
             enc_fold_nodes = encode_structure_fold(d_data).to(device)
-            decoded = decode_structure_fold(enc_fold_nodes, d_data, weight)
+            decoded = decode_structure_fold(enc_fold_nodes, d_data, weight, weight_mult)
            
             l = []
             mse_loss_list = decoded.traverseInorderMSE(decoded, l)
@@ -705,11 +713,14 @@ def main():
                     torch.add (l3, element)
                     '''
             mse_loss = sum(mse_loss_list)
-            #breakpoint()
+            
             ce_loss = sum(ce_loss_list)
-            loss_l3 = [a for a in loss_list if a is not None]
-            l3 = sum(loss_l3)
-            total_loss = mse_loss + ce_loss + l3
+            count = []
+            in_n_nodes = len(d_data.count_nodes(d_data, count))
+            loss_l3 = [a for a in ce_loss_list if a == 0]
+            l2 = [a for a in ce_loss_list if a != 0]
+            #l3 = sum(loss_l3)
+            total_loss = (0.2*mse_loss + ce_loss)*(in_n_nodes -len(l2) +1) 
             #print("l3",l3)
             # Do parameter optimization
             leaf_encoder_opt.zero_grad()
@@ -735,14 +746,30 @@ def main():
             #bifurcation_scheduler.step()
             #internal_scheduler.step()
 
-            train_loss_avg[-1] += total_loss.item()
-            ce_avg [-1] += ce_loss.item()
-            mse_avg [-1] +=mse_loss.item()
+            train_loss_avg[-1] += (total_loss.item())
+            ce_avg[-1] += (ce_loss.item())
+            mse_avg[-1] += (mse_loss.item())
+            batches += 1
             #lr_list [-1] += leaf_scheduler.get_last_lr()[-1]
-            l3_list [-1] += l3
+            #l3_list [-1] += l3
 
-        if epoch % 1 == 0:
-            print('Epoch [%d / %d] average reconstruction error: %f mse: %f, ce: %f, l3: %f' % (epoch+1, epochs, train_loss_avg[-1], mse_avg[-1], ce_avg[-1], l3_list[-1]))
+        if weight_mult*1.02 < 1:
+            weight_mult = weight_mult*1.01
+        else:
+            weight_mult = 1
+
+        train_loss_avg[-1] /= batches
+        ce_avg[-1] /= batches
+        mse_avg[-1] /= batches
+        if epoch % 10 == 0:
+            print('Epoch [%d / %d] average reconstruction error: %f mse: %f, ce: %f, weight_mult: %f' % (epoch+1, epochs, train_loss_avg[-1], mse_avg[-1], ce_avg[-1], weight_mult))
+            print("l3", len(loss_l3))
+            print("l2", len(l2))
+            print("in", in_n_nodes)
+
+
+            #print("l3", l3)
+            
 
     #print(decoded_copy2.height(decoded_copy2))
     #decoded_copy2.traverseInorder(decoded_copy2)
@@ -754,7 +781,7 @@ def main():
     input.traverseInorder(input)
     encoded = encode_structure_fold(input).to(device)
     print("encoded", enc_fold_nodes)
-    decoded = decode_structure_fold(encoded, d_data, 1)
+    decoded = decode_structure_fold(encoded, d_data, 1, weight_mult=1)
     count = []
     numerar_nodos(decoded, count)
     decoded.traverseInorder(decoded)
