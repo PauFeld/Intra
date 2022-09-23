@@ -10,7 +10,10 @@ import os
 import numpy as np
 from vec3 import Vec3
 
-
+import torch
+torch.manual_seed(125)
+import random
+random.seed(125)
 def count_fn(f):
     def wrapper(*args, **kwargs):
         wrapper.count += 1
@@ -112,6 +115,16 @@ class Node:
             self.traverseInorderCE(root.right, loss)
             return loss
 
+    def traverseInorderChilds(self, root, l):
+        """
+        traverse function will print all the node in the tree.
+        """
+        if root is not None:
+            self.traverseInorderChilds(root.left, l)
+            l.append(root.childs())
+            self.traverseInorderChilds(root.right, l)
+            return l
+
     def preorder(self, root):
         """
         traverse function will print all the node in the tree.
@@ -174,7 +187,6 @@ class Node:
 
     
     def serialize(self, root):
-        
         def post_order(root):
             if root:
                 post_order(root.left)
@@ -208,6 +220,20 @@ def traverse(root, tree):
             tree.append((root.radius, root.data))
             traverse(root.right, tree)
             return tree
+
+def traverse_2(tree1, tree2, t_l):
+       
+        if tree1 is not None:
+            traverse_2(tree1.left, tree2.left, t_l)
+            if tree2:
+                t_l.append((tree1.radius, tree2.radius))
+                print((tree1.radius, tree2.radius))
+            else:
+                t_l.append(tree1.radius)
+                print((tree1.radius))
+            traverse_2(tree1.right, tree2, t_l)
+            return t_l
+            
 
 def traverse_conexiones(root, tree):
         """
@@ -305,8 +331,8 @@ class LeafEncoder(nn.Module):
     
     def __init__(self):
         super(LeafEncoder, self).__init__()
-        self.l1 = nn.Linear(4, 16)
-        self.l2 = nn.Linear(16, 32)
+        self.l1 = nn.Linear(4, 32)
+        self.l2 = nn.Linear(32, 32)
         self.tanh = nn.Tanh()
 
     def forward(self, input):
@@ -326,8 +352,8 @@ class NonLeafEncoder(nn.Module):
         self.l1 = nn.Linear(4,16)
         self.l2 = nn.Linear(16,32)
 
-        self.left = nn.Linear(32, 32)
-        self.right = nn.Linear(32, 32)
+        self.left = nn.Linear(32,32)
+        self.right = nn.Linear(32,32)
         
         self.encoder = nn.Linear(64, 32)
         self.tanh = nn.Tanh()
@@ -379,14 +405,20 @@ class NodeClassifier(nn.Module):
     
     def __init__(self):
         super(NodeClassifier, self).__init__()
-        self.mlp1 = nn.Linear(32, 8)
-        self.tanh = nn.Tanh()
-        self.mlp2 = nn.Linear(8, 3)
-        
+        self.mlp1 = nn.Linear(32, 16)
+        self.tanh = nn.LeakyReLU()
+        self.mlp2 = nn.Linear(16, 8)
+
+        self.tanh2 = nn.LeakyReLU()
+        self.mlp3 = nn.Linear(8, 3)
+
     def forward(self, input_feature):
         output = self.mlp1(input_feature)
         output = self.tanh(output)
         output = self.mlp2(output)
+
+        output = self.tanh2(output)
+        output = self.mlp3(output)
         
         return output
 
@@ -395,9 +427,9 @@ class InternalDecoder(nn.Module):
     """ Decode an input (parent) feature into a left-child and a right-child feature """
     def __init__(self):
         super(InternalDecoder, self).__init__()
-        self.mlp = nn.Linear(32,32)
-        self.lp2 = nn.Linear(32,32)
-        self.mlp_right = nn.Linear(32,32)
+        self.mlp = nn.Linear(32, 32)
+        self.lp2 = nn.Linear(32, 32)
+        self.mlp_right = nn.Linear(32, 32)
         self.tanh = nn.Tanh()
         self.mlp2 = nn.Linear(32,4)
 
@@ -443,10 +475,10 @@ class featureDecoder(nn.Module):
     """ Decode an input (parent) feature into a left-child and a right-child feature """
     def __init__(self):
         super(featureDecoder, self).__init__()
-        self.mlp = nn.Linear(32,16)
-        self.mlp2 = nn.Linear(16,8)
+        self.mlp = nn.Linear(32,32)
+        self.mlp2 = nn.Linear(32,32)
         self.tanh = nn.Tanh()
-        self.mlp3 = nn.Linear(8,4)
+        self.mlp3 = nn.Linear(32,4)
 
     def forward(self, parent_feature):
         vector = self.mlp(parent_feature)
@@ -455,7 +487,6 @@ class featureDecoder(nn.Module):
         vector = self.tanh(vector)
         vector = self.mlp3(vector)
        
-
         return vector
 
 featuredec = featureDecoder()
@@ -468,62 +499,79 @@ nodeClassifier = NodeClassifier()
 nodeClassifier = nodeClassifier.to(device)
 
 def calcularLossEstructura(cl_p, original):
-    #breakpoint()
+    mult = torch.tensor([1/3.,1/56,1/2.], device = device)#1-7
+    ce = nn.CrossEntropyLoss(weight=mult)
+
     if original is None:
-        return 0
+        #vector = [1,1,1]
+        vector = [1, 0, 0]
     else:
         if original.childs() == 0:
-            vector = [1, 0, 0]
+            vector = [1, 0, 0] 
         if original.childs() == 1:
             vector = [0, 1, 0]
         if original.childs() == 2:
-            vector = [0, 0, 1]
-    
-    ce = nn.CrossEntropyLoss()
-    
-    return ce(cl_p, torch.tensor(vector, device=device, dtype = torch.float).reshape(1, 3))
+            vector = [0, 0, 1] 
+
+    #mult = torch.tensor([1/3.,1/58,1/2.], device = device)#1-0
+    #mult = torch.tensor([1/4.,1/72,1/3.], device = device)#19-2
+    #mult = torch.tensor([1/2.,1/60,1/1.], device = device)#b1-0
+    #mult = torch.tensor([1/3.,1/16,1/2.], device = device)#1-2
+
+    #ce = nn.CrossEntropyLoss()
+    c = ce(cl_p, torch.tensor(vector, device=device, dtype = torch.float).reshape(1, 3))
+
+    '''
+    if original.childs() == label:
+        sum = 0
+    else:
+        sum = 1
+    '''
+    return c
+
+
 
 def calcularLossAtributo(nodo, radio):
 
     if nodo is None:
         #return 0 #es cuando creo un nodo que esta "mal ubicado"
-
-        return torch.tensor(1., device=device, requires_grad = True)
+        return 0
+        #return torch.tensor(1., device=device, requires_grad = True)
         ##return 1 y despues calculo otra loss con la suma de estos valores
-    
     else:
         
         radio = radio.reshape(4)
-        l2 = nn.MSELoss(reduction = 'mean')
-       
+        l2    = nn.MSELoss(reduction = 'mean')
         return l2(nodo.radius, radio )
 
-def decode_structure_fold(v, root, weight, weight_mult):
-    def decode_node(v, node, weight, weight_mult):
+def decode_structure_fold(v, root, max_nodes = 200, max_depth = 100):
+
+    def decode_node(v, node, count_level, max_nodes, max_depth, level = 0):
         cl = nodeClassifier(v)
         _, label = torch.max(cl, 1)
         label = label.data
-        #print("label", label)
-        if label == 0 and createNode.count <= 70: ##output del classifier
+       
+        #if label == 0 and createNode.count <= max_nodes: ##output del classifier
+        if node.childs() == 0 and createNode.count <= max_nodes: ##output del classifier
             #if node.childs() != 0:
             lossEstructura = calcularLossEstructura(cl, node)
             radio = featuredec(v)
 
             lossAtrs = calcularLossAtributo( node, radio )
             #return createNode(1,radio, cl_prob = weight * (lossEstructura + lossAtrs))
-            return createNode(1,radio, ce = weight*lossEstructura,  mse = lossAtrs)
-        elif label == 1 and createNode.count <= 70:
+            nd = createNode(1,radio, ce = lossEstructura,  mse = lossAtrs)
+            count_level.append(1)
+            #print("nd", nd)
+            #print("h", nd.height(nd))
+            return nd
+
+        elif node.childs() == 1 and createNode.count <= max_nodes:
             right, radius = internaldec(v)
             #if node.childs() != 1:
             lossEstructura = calcularLossEstructura(cl, node)
             lossAtrs = calcularLossAtributo( node, radius )
-            #breakpoint()
-            #d = createNode(1, radius, cl_prob = weight * (lossEstructura + lossAtrs ) )
-            if node is None:
-                d = createNode(1, radius, cl_prob = lossAtrs , ce = lossEstructura, mse= torch.tensor(0, device=device)) 
-            else:
-                d = createNode(1, radius, ce = lossEstructura, mse = lossAtrs ) 
-            
+           
+            nd = createNode(1, radius, cl_prob = lossAtrs , ce = lossEstructura, mse = lossAtrs) 
              
             if not node is None:
                 if not node.right is None:
@@ -532,31 +580,25 @@ def decode_structure_fold(v, root, weight, weight_mult):
                     nodoSiguiente = None
             else:
                 nodoSiguiente = None
+            
+            count_level.append(1)
+            #if len(count_level) < max_depth:
+            if nodoSiguiente is not None:
+                nd.right = decode_node(right, nodoSiguiente, count_level, max_nodes, max_depth, level=level+1)
+                level=level-1
+            return nd
 
-            
-            d.right = decode_node(right, nodoSiguiente, weight_mult*weight, weight_mult)
-            #weight_mult = weight_mult*1.1
-            
-            return d
-        elif label == 2 and createNode.count <= 70:
+        elif node.childs() == 2 and createNode.count <= max_nodes:
             left, right, radius = bifdec(v)
-            #if node.childs() != 2:
             lossEstructura = calcularLossEstructura(cl, node)
-
             lossAtrs = calcularLossAtributo( node, radius )
-
-            #d = createNode(1, radius, cl_prob = weight * (lossEstructura + lossAtrs ))
-            if node is None:
-                d = createNode(1, radius, cl_prob = lossAtrs, ce = lossEstructura, mse = torch.tensor(0, device=device))
-            else:
-                d = createNode(1, radius, ce = lossEstructura, mse = lossAtrs )
-            
+            nd = createNode(1, radius, cl_prob = lossAtrs, ce = lossEstructura, mse = lossAtrs)
+                
             if not node is None: #el nodo existe, me fijo si tiene hijo der/izq
                 if not node.right is None:
                     nodoSiguienteRight = node.right
                 else:
                     nodoSiguienteRight = None
-
                 if not node.left is None:
                     nodoSiguienteLeft = node.left
                 else:
@@ -564,17 +606,49 @@ def decode_structure_fold(v, root, weight, weight_mult):
             else: #el nodo no existe
                 nodoSiguienteRight = None
                 nodoSiguienteLeft = None
-
-            
-            d.right = decode_node(right, nodoSiguienteRight, weight_mult*weight, weight_mult)
-            d.left = decode_node(left, nodoSiguienteLeft, weight_mult*weight, weight_mult )
-            #weight_mult = weight_mult*1.1
-           
-            return d
-        
+            count_level.append(1)
+            #if len(count_level) < max_depth:
+            if nodoSiguienteRight is not None:
+                nd.right = decode_node(right, nodoSiguienteRight, count_level, max_nodes, max_depth, level=level+1)
+                level=level-1
+            if nodoSiguienteLeft is not None:
+                nd.left  = decode_node(left, nodoSiguienteLeft, count_level, max_nodes, max_depth, level=level+1)
+                level=level-1
+            return nd
     
     createNode.count = 0
-    dec = decode_node(v, root, weight, weight_mult)
+    count_level = []
+    dec = decode_node (v, root, count_level, max_nodes, max_depth, level=0)
+    return dec
+
+def decode_testing(v):
+    
+    def decode_node(v):
+        cl = nodeClassifier(v)
+        _, label = torch.max(cl, 1)
+        label = label.data
+       
+        if label == 0: ##output del classifier
+            radio = featuredec(v)
+            nd = createNode(1,radio)
+            return nd
+
+        elif label == 1:
+            right, radius = internaldec(v)
+            nd = createNode(1, radius) 
+            nd.right = decode_node(right)
+            return nd
+
+        elif label == 2:
+            left, right, radius = bifdec(v)
+            nd = createNode(1, radius)
+            nd.right = decode_node(right)
+            nd.left  = decode_node(left)
+            return nd
+    
+    createNode.count = 0
+    count_level = []
+    dec = decode_node (v)
     return dec
 
 def numerar_nodos(root, count):
@@ -628,8 +702,8 @@ def normalize_features(root):
 
     return 
         
-t_list = ['ArteryObjAN1-2.dat','ArteryObjAN1-0.dat','ArteryObjAN1-7.dat', 'ArteryObjAN1-4.dat']
 #t_list = ['test6.dat']
+t_list = ['ArteryObjAN1-7.dat']
 class tDataset(Dataset):
     def __init__(self, transform=None):
         self.names = t_list
@@ -649,117 +723,90 @@ data_loader = DataLoader(dataset, batch_size=1, shuffle=True, drop_last=True)
 
 def main():
 
-    epochs = 10000
-    learning_rate = 1e-3
+    epochs = 2500
+    learning_rate = 1e-4
 
-    leaf_encoder_opt = torch.optim.Adam(leafenc.parameters(), lr=learning_rate)
-    non_leaf_encoder_opt = torch.optim.Adam(nonleafenc.parameters(), lr=learning_rate)
-    class_opt = torch.optim.Adam(nodeClassifier.parameters(), lr=learning_rate)
+    params = list(leafenc.parameters()) + list(nonleafenc.parameters()) + list(nodeClassifier.parameters()) + list(featuredec.parameters()) + list(bifdec.parameters())+ list(internaldec.parameters())
+    opt = torch.optim.Adam(params, lr=learning_rate)
 
-    feature_decoder_opt = torch.optim.Adam(featuredec.parameters(), lr=learning_rate)
-    bifurcation_decoder_opt = torch.optim.Adam(bifdec.parameters(), lr=learning_rate)
-    internal_decoder_opt = torch.optim.Adam(internaldec.parameters(), lr=learning_rate)
-
-    #leaf_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=leaf_encoder_opt, gamma=0.9995)
-    #non_leaf_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=non_leaf_encoder_opt, gamma=0.9995)
-    #class_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=class_opt, gamma=0.9995)
-    #feature_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=feature_decoder_opt, gamma=0.9995)
-    #bifurcation_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=bifurcation_decoder_opt, gamma=0.9995)
-    #internal_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=internal_decoder_opt, gamma=0.9995)
-
-
+    #scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=opt, gamma=0.995)
     train_loss_avg = []
     ce_avg = []
     mse_avg = []
-    l1_avg = []
+
     lr_list = []
-    l3_list = []
+
+    l2_l = []
     weight_mult=0.1
     for epoch in range(epochs):
         train_loss_avg.append(0)
         ce_avg.append(0)
         mse_avg.append(0)
+        lr_list.append(0)
         weight = 1
         batches = 0
         for data in data_loader:
             
             d_data = deserialize(data[0])
+            li = []
+            d_data.traverseInorderChilds(d_data, li)
+            zero = [a for a in li if a == 0]
+            one = [a for a in li if a == 1]
+            two = [a for a in li if a == 2]
+            qzero = len(zero)
+            qOne = len(one)
+            qtwo = len(two)
+            #breakpoint()
             normalize_features(d_data)
-
             enc_fold_nodes = encode_structure_fold(d_data).to(device)
-            decoded = decode_structure_fold(enc_fold_nodes, d_data, weight, weight_mult)
+            
+            max_depth = 30
+            max_nodes = 200
+            decoded = decode_structure_fold(enc_fold_nodes, d_data, max_nodes, max_depth)
            
             l = []
             mse_loss_list = decoded.traverseInorderMSE(decoded, l)
             l = []
             ce_loss_list = decoded.traverseInorderCE(decoded, l)
-            l = []
-            loss_list = decoded.traverseInorderLoss(decoded, l)
             
-            mse_loss = sum(mse_loss_list)
-            
-            ce_loss = sum(ce_loss_list)
+            mse_loss = sum(mse_loss_list) / len(mse_loss_list)
+            ce_loss  = sum(ce_loss_list)  / len(ce_loss_list)
+
             count = []
             in_n_nodes = len(d_data.count_nodes(d_data, count))
-            loss_l3 = [a for a in ce_loss_list if a == 0]
-            l2 = [a for a in ce_loss_list if a != 0]
-            #l3 = sum(loss_l3)
-            total_loss =mse_loss + ce_loss*(in_n_nodes -len(l2) +1) 
-            #print("l3",l3)
-            # Do parameter optimization
-            leaf_encoder_opt.zero_grad()
-            non_leaf_encoder_opt.zero_grad()
-            feature_decoder_opt.zero_grad()
-            bifurcation_decoder_opt.zero_grad()
-            internal_decoder_opt.zero_grad()
-            class_opt.zero_grad()
-
+            loss_l3 = [a for a in ce_loss_list if a == 0] #nodos que creo en posicion incorrecta
+            l2 = [a for a in mse_loss_list if a != 0] #nodos que creo en posicion correcta
+            #l2_i = mse_loss_list 
+            total_loss = (0.3*mse_loss + ce_loss)
+            
+            opt.zero_grad()
             total_loss.backward()
-
-            leaf_encoder_opt.step()
-            non_leaf_encoder_opt.step()
-            feature_decoder_opt.step()
-            bifurcation_decoder_opt.step()
-            class_opt.step()
-            internal_decoder_opt.step()
-
-            #leaf_scheduler.step()
-            #non_leaf_scheduler.step()
-            #class_scheduler.step()
-            #feature_scheduler.step()
-            #bifurcation_scheduler.step()
-            #internal_scheduler.step()
+            opt.step()
+            #scheduler.step()
 
             train_loss_avg[-1] += (total_loss.item())
             ce_avg[-1] += (ce_loss.item())
             mse_avg[-1] += (mse_loss.item())
+            #lr_list[-1] += (scheduler.get_last_lr()[-1])
             batches += 1
-            #lr_list [-1] += leaf_scheduler.get_last_lr()[-1]
-            #l3_list [-1] += l3
-
-        if weight_mult*1.02 < 1:
-            weight_mult = weight_mult*1.01
-        else:
-            weight_mult = 1
+            l2_l.append(len(l2))
+           
 
         train_loss_avg[-1] /= batches
         ce_avg[-1] /= batches
         mse_avg[-1] /= batches
         if epoch % 10 == 0:
-            print('Epoch [%d / %d] average reconstruction error: %f mse: %f, ce: %f, weight_mult: %f' % (epoch+1, epochs, train_loss_avg[-1], mse_avg[-1], ce_avg[-1], weight_mult))
-            print("l3", len(loss_l3))
-            print("l2", len(l2))
-            print("in", in_n_nodes)
-
-
-            #print("l3", l3)
+            print('Epoch [%d / %d] average reconstruction error: %f mse: %f, ce: %f, lr: %f' % (epoch+1, epochs, train_loss_avg[-1], mse_avg[-1], ce_avg[-1], lr_list[-1]))
+            #print("l3", len(loss_l3))
+            #print("l2", len(l2))
+            #print("in", in_n_nodes)
             
     input = deserialize(iter(data_loader).next()[0])
     normalize_features(input)
     input.traverseInorder(input)
     encoded = encode_structure_fold(input).to(device)
     print("encoded", enc_fold_nodes)
-    decoded = decode_structure_fold(encoded, d_data, 1, weight_mult=1)
+    decoded = decode_testing(encoded)
     count = []
     numerar_nodos(decoded, count)
     decoded.traverseInorder(decoded)

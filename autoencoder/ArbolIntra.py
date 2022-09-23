@@ -6,7 +6,7 @@ from vec3 import Vec3
 import matplotlib.pyplot as plt
 
 
-filename = "ArteryObjAN1-0"
+filename = "ArteryObjAN19-2"
 
 grafo = pickle.load(open('grafos/' +filename + '-grafo.gpickle', 'rb'))
 
@@ -53,13 +53,13 @@ while len(aRecorrer) != 0:
             aRecorrer.append( (vecino, nodoAAgregar,nodoActual) )
 
 print(nodoRaiz.children)
-print("right", nodoRaiz.left.right.left)
+print("right", nodoRaiz.data)
 print(nodoRaiz)
 serial = nodoRaiz.serialize(nodoRaiz)
 print("serialized", nodoRaiz.serialize(nodoRaiz))
 
 #write serialized string to file
-file = open("./Trees/ArteryObjAN1-0.dat", "w")
+file = open("./Trees/ArteryObjAN19-2.dat", "w")
 file.write(serial)
 file.close() 
 
@@ -108,16 +108,21 @@ def arbolAGrafo (nodoRaiz):
     G.add_edges_from( lineas )
     
     a = nx.get_node_attributes(G, 'posicion')
-    for key in a.keys():
-        a[key] = a[key].toNumpy()[0:2]
+    #for key in a.keys():
+    #    a[key] = a[key].toNumpy()[0:2]
 
     #plt.figure(figsize=(20,10))
     #nx.draw(G, pos = a, node_size = 150, with_labels = True)
     #plt.show()
-    return G, a
+    #return G, a
+    return G
 
-G, a = arbolAGrafo(nodoRaiz)
-nx.draw(G, pos = a, node_size = 150, with_labels = True)
+filename = 'test6.dat'
+arbol = p.deserialize(p.read_tree(filename))
+print("arbol", arbol)
+#G, a = arbolAGrafo(arbol)
+G = arbolAGrafo(arbol)
+nx.draw(G, node_size = 150, with_labels = True)
 plt.show()
 import numpy as np
 import meshplot as mp
