@@ -421,53 +421,6 @@ class NodeClassifier(nn.Module):
         
         return output
 
-class InternalDecoder(nn.Module):
-
-    """ Decode an input (parent) feature into a left-child and a right-child feature """
-    def __init__(self):
-        super(InternalDecoder, self).__init__()
-        self.mlp = nn.Linear(32, 32)
-        self.lp2 = nn.Linear(32, 32)
-        self.mlp_right = nn.Linear(32, 32)
-        self.tanh = nn.Tanh()
-        self.mlp2 = nn.Linear(32,4)
-
-    def forward(self, parent_feature):
-        
-        vector = self.mlp(parent_feature)
-        vector = self.tanh(vector)
-        vector = self.lp2(vector)
-        vector = self.tanh(vector)
-        right_feature = self.mlp_right(vector)
-        right_feature = self.tanh(right_feature)
-        rad_feature = self.mlp2(vector)
-
-        return right_feature, rad_feature
-
-class BifurcationDecoder(nn.Module):
-    
-    """ Decode an input (parent) feature into a left-child and a right-child feature """
-    def __init__(self):
-        super(BifurcationDecoder, self).__init__()
-        self.mlp = nn.Linear(32,32)
-        self.lp2 = nn.Linear(32,32)
-        self.mlp_left = nn.Linear(32,32)
-        self.mlp_right = nn.Linear(32,32)
-        self.mlp2 = nn.Linear(32,4)
-        self.tanh = nn.Tanh()
-
-    def forward(self, parent_feature):
-        vector = self.mlp(parent_feature)
-        vector = self.tanh(vector)
-        vector = self.lp2(vector)
-        vector = self.tanh(vector)
-        left_feature = self.mlp_left(vector)
-        left_feature = self.tanh(left_feature)
-        right_feature = self.mlp_right(vector)
-        right_feature = self.tanh(right_feature)
-        rad_feature = self.mlp2(vector)
-
-        return left_feature, right_feature, rad_feature
 
 class Decoder(nn.Module):
     
@@ -509,32 +462,6 @@ class Decoder(nn.Module):
             
             return (left_feature, right_feature, rad_feature)
     
-
-class featureDecoder(nn.Module):
-    
-    """ Decode an input (parent) feature into a left-child and a right-child feature """
-    def __init__(self):
-        super(featureDecoder, self).__init__()
-        self.mlp = nn.Linear(32,32)
-        self.mlp2 = nn.Linear(32,32)
-        self.tanh = nn.Tanh()
-        self.mlp3 = nn.Linear(32,4)
-
-    def forward(self, parent_feature):
-        vector = self.mlp(parent_feature)
-        vector = self.tanh(vector)
-        vector = self.mlp2(vector)
-        vector = self.tanh(vector)
-        vector = self.mlp3(vector)
-       
-        return vector
-
-featuredec = featureDecoder()
-featuredec=featuredec.to(device)
-bifdec = BifurcationDecoder()
-bifdec = bifdec.to(device)
-internaldec = InternalDecoder()
-internaldec=internaldec.to(device)
 nodeClassifier = NodeClassifier()
 nodeClassifier = nodeClassifier.to(device)
 decoder = Decoder()
@@ -542,7 +469,8 @@ decoder = decoder.to(device)
 
 def calcularLossEstructura(cl_p, original):
     #mult = torch.tensor([1/3.,1/56,1/2.], device = device)#1-7
-    mult = torch.tensor([1/3.,1/16,1/2.], device = device)#1-2
+    #mult = torch.tensor([1/3.,1/16,1/2.], device = device)#1-2
+    mult = torch.tensor([1/3.,1/56,1/2.], device = device)
     ce = nn.CrossEntropyLoss(weight=mult)
 
     
@@ -564,11 +492,9 @@ def calcularLossEstructura(cl_p, original):
 def calcularLossAtributo(nodo, radio):
     
     radio = radio.reshape(4)
-    l2    = nn.MSELoss(reduction = 'mean')
+    l2    = nn.MSELoss()
    
     mse = l2(radio, nodo.radius)
-    le = torch.tensor((nodo.radius - radio)**2, requires_grad=True)
-    #breakpoint()
     return mse
 
 
@@ -581,7 +507,6 @@ def decode_structure_fold(v, root, max_nodes = 200, max_depth = 100):
 
         left, right, radius = decoder(v, node.childs())
         lossEstructura = calcularLossEstructura(cl, node)
-        #lossAtrs = calcularLossAtributo( node, radius )
         lossAtrs = calcularLossAtributo(node, radius)
         nd = createNode(1,radius, ce = lossEstructura,  mse = lossAtrs)
 
@@ -596,51 +521,7 @@ def decode_structure_fold(v, root, max_nodes = 200, max_depth = 100):
             level=level-1
         return nd
 
-        '''
-        if node.childs() == 0 and createNode.count <= max_nodes: ##output del classifier
-            lossEstructura = calcularLossEstructura(cl, node)
-            radio = featuredec(v)
-            lossAtrs = calcularLossAtributo( node, radio )
-            nd = createNode(1,radio, ce = lossEstructura,  mse = lossAtrs)
-            return nd
-
-        elif node.childs() == 1 and createNode.count <= max_nodes:
-            right, radius = internaldec(v)
-            lossEstructura = calcularLossEstructura(cl, node)
-            lossAtrs = calcularLossAtributo( node, radius )
-            nd = createNode(1, radius, cl_prob = lossAtrs , ce = lossEstructura, mse = lossAtrs) 
-            
-            nodoSiguiente = node.right
-            #if not node is None:
-            #    if not node.right is None:
-            #        nodoSiguiente = node.right
-            #    else:
-            #        print("aca")
-            #        nodoSiguiente = None
-            #else:
-            #    nodoSiguiente = None
-            
-            if nodoSiguiente is not None:
-                nd.right = decode_node(right, nodoSiguiente, max_nodes, max_depth, level=level+1)
-                level=level-1
-            return nd
-
-        elif node.childs() == 2 and createNode.count <= max_nodes:
-            left, right, radius = bifdec(v)
-            lossEstructura = calcularLossEstructura(cl, node)
-            lossAtrs = calcularLossAtributo( node, radius )
-            nd = createNode(1, radius, cl_prob = lossAtrs, ce = lossEstructura, mse = lossAtrs)
-            
-            nodoSiguienteRight = node.right
-            nodoSiguienteLeft = node.left
-            if nodoSiguienteRight is not None:
-                nd.right = decode_node(right, nodoSiguienteRight, max_nodes, max_depth, level=level+1)
-                level=level-1
-            if nodoSiguienteLeft is not None:
-                nd.left  = decode_node(left, nodoSiguienteLeft, max_nodes, max_depth, level=level+1)
-                level=level-1
-            return nd
-            '''
+       
     createNode.count = 0
     dec = decode_node (v, root, max_nodes, max_depth, level=0)
     return dec
@@ -661,25 +542,6 @@ def decode_testing(v, max):
             nd.left  = decode_node(izq)
         
         return nd
-        '''
-        if label == 0 and createNode.count < max: ##output del classifier
-            radio = featuredec(v)
-            nd = createNode(1,radio)
-            return nd
-
-        elif label == 1 and createNode.count < max:
-            right, radius = internaldec(v)
-            nd = createNode(1, radius) 
-            nd.right = decode_node(right)
-            return nd
-
-        elif label == 2 and createNode.count < max:
-            left, right, radius = bifdec(v)
-            nd = createNode(1, radius)
-            nd.right = decode_node(right)
-            nd.left  = decode_node(left)
-            return nd
-        '''
         
     createNode.count = 0
     dec = decode_node (v)
@@ -737,7 +599,7 @@ def normalize_features(root):
     return 
         
 #t_list = ['test6.dat']
-t_list = ['ArteryObjAN1-2.dat']
+t_list = ['ArteryObjAN1-7.dat']
 class tDataset(Dataset):
     def __init__(self, transform=None):
         self.names = t_list
@@ -757,18 +619,17 @@ data_loader = DataLoader(dataset, batch_size=1, shuffle=True, drop_last=True)
 
 def main():
 
-    epochs = 3000
-    learning_rate = 1e-4
+    epochs = 1000
+    learning_rate = 1e-3
 
-    params = list(leafenc.parameters()) + list(nonleafenc.parameters()) + list(nodeClassifier.parameters()) + list(featuredec.parameters()) + list(bifdec.parameters())+ list(internaldec.parameters())
+    params = list(leafenc.parameters()) + list(nonleafenc.parameters()) + list(nodeClassifier.parameters()) + list(decoder.parameters())
     opt = torch.optim.Adam(params, lr=learning_rate)
 
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=opt, gamma=1)
+    #scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=opt, gamma=1)
     train_loss_avg = []
     ce_avg = []
     mse_avg = []
     lr_list = []
-    l2_l = []
     
     for epoch in range(epochs):
         train_loss_avg.append(0)
@@ -805,20 +666,16 @@ def main():
 
             count = []
             in_n_nodes = len(d_data.count_nodes(d_data, count))
-            #loss_l3 = [a for a in ce_loss_list if a == 0] #nodos que creo en posicion incorrecta
-            #l2 = [a for a in mse_loss_list if a != 0] #nodos que creo en posicion correcta 
-
-            
             
             opt.zero_grad()
             total_loss.backward()
             opt.step()
-            scheduler.step()
+            #scheduler.step()
 
             train_loss_avg[-1] += (total_loss.item())
             ce_avg[-1] += (ce_loss.item())
             mse_avg[-1] += (mse_loss.item())
-            lr_list[-1] += (scheduler.get_last_lr()[-1])
+            #lr_list[-1] += (scheduler.get_last_lr()[-1])
             batches += 1
             #l2_l.append(len(l2))
            
@@ -827,10 +684,7 @@ def main():
         ce_avg[-1] /= batches
         mse_avg[-1] /= batches
         if epoch % 10 == 0:
-            print('Epoch [%d / %d] average reconstruction error: %f mse: %f, ce: %f, lr: %f' % (epoch+1, epochs, train_loss_avg[-1], mse_avg[-1], ce_avg[-1], lr_list[-1]))
-            #print("l3", len(loss_l3))
-            #print("l2", len(l2))
-            #print("in", in_n_nodes)
+            print('Epoch [%d / %d] average reconstruction error: %f mse: %f, ce: %f, lr: %f' % (epoch+1, epochs, train_loss_avg[-1], mse_avg[-1], ce_avg[-1], 0.001))
             
     input = deserialize(iter(data_loader).next()[0])
     normalize_features(input)
