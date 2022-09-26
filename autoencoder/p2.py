@@ -1,3 +1,4 @@
+## sin unificar el decoder
 from logging import raiseExceptions
 from tokenize import Double
 import networkx as nx
@@ -469,46 +470,7 @@ class BifurcationDecoder(nn.Module):
 
         return left_feature, right_feature, rad_feature
 
-class Decoder(nn.Module):
-    
 
-    def __init__(self):
-        super(Decoder, self).__init__()
-        self.mlp = nn.Linear(32,64)
-        self.mlp2 = nn.Linear(64,32)
-        self.mlp_left = nn.Linear(32,32)
-        self.mlp_right = nn.Linear(32,32)
-        self.mlp3 = nn.Linear(32,4)
-        self.tanh = nn.Tanh()
-
-    def forward(self, parent_feature, label):
-        vector = self.mlp(parent_feature)
-        vector = self.tanh(vector)
-        vector = self.mlp2(vector)
-        vector = self.tanh(vector)
-        
-        if label == 0:
-            rad_feature = self.mlp3(vector)
-            
-            return (None, None, rad_feature)
-        elif label == 1:
-            right_feature = self.mlp_right(vector)
-            right_feature = self.tanh(right_feature)
-            rad_feature = self.mlp3(vector)
-            
-
-            return (None,  right_feature, rad_feature)
-        elif label == 2:
-            right_feature = self.mlp_right(vector)
-            right_feature = self.tanh(right_feature)
-
-            left_feature = self.mlp_left(vector)
-            left_feature = self.tanh(left_feature)
-
-            rad_feature = self.mlp3(vector)
-            
-            return (left_feature, right_feature, rad_feature)
-    
 
 class featureDecoder(nn.Module):
     
@@ -537,12 +499,11 @@ internaldec = InternalDecoder()
 internaldec=internaldec.to(device)
 nodeClassifier = NodeClassifier()
 nodeClassifier = nodeClassifier.to(device)
-decoder = Decoder()
-decoder = decoder.to(device)
+
 
 def calcularLossEstructura(cl_p, original):
-    #mult = torch.tensor([1/3.,1/56,1/2.], device = device)#1-7
-    mult = torch.tensor([1/3.,1/16,1/2.], device = device)#1-2
+    mult = torch.tensor([1/3.,1/56,1/2.], device = device)#1-7
+    #mult = torch.tensor([1/3.,1/16,1/2.], device = device)#1-2
     ce = nn.CrossEntropyLoss(weight=mult)
 
     
@@ -579,24 +540,7 @@ def decode_structure_fold(v, root, max_nodes = 200, max_depth = 100):
         _, label = torch.max(cl, 1)
         label = label.data
 
-        left, right, radius = decoder(v, node.childs())
-        lossEstructura = calcularLossEstructura(cl, node)
-        #lossAtrs = calcularLossAtributo( node, radius )
-        lossAtrs = calcularLossAtributo(node, radius)
-        nd = createNode(1,radius, ce = lossEstructura,  mse = lossAtrs)
-
-        nodoSiguienteRight = node.right
-        nodoSiguienteLeft = node.left
-
-        if nodoSiguienteRight is not None and right is not None:
-            nd.right = decode_node(right, nodoSiguienteRight, max_nodes, max_depth, level=level+1)
-            level=level-1
-        if nodoSiguienteLeft is not None and left is not None:
-            nd.left  = decode_node(left, nodoSiguienteLeft, max_nodes, max_depth, level=level+1)
-            level=level-1
-        return nd
-
-        '''
+        
         if node.childs() == 0 and createNode.count <= max_nodes: ##output del classifier
             lossEstructura = calcularLossEstructura(cl, node)
             radio = featuredec(v)
@@ -640,7 +584,7 @@ def decode_structure_fold(v, root, max_nodes = 200, max_depth = 100):
                 nd.left  = decode_node(left, nodoSiguienteLeft, max_nodes, max_depth, level=level+1)
                 level=level-1
             return nd
-            '''
+            
     createNode.count = 0
     dec = decode_node (v, root, max_nodes, max_depth, level=0)
     return dec
@@ -651,17 +595,7 @@ def decode_testing(v, max):
         cl = nodeClassifier(v)
         _, label = torch.max(cl, 1)
         label = label.data
-        print(label)
-        izq, der, radio = decoder(v, label)
-        nd = createNode(1,radio)
-       
-        if der is not None:
-            nd.right = decode_node(der)
-        if izq is not None:
-            nd.left  = decode_node(izq)
         
-        return nd
-        '''
         if label == 0 and createNode.count < max: ##output del classifier
             radio = featuredec(v)
             nd = createNode(1,radio)
@@ -679,7 +613,7 @@ def decode_testing(v, max):
             nd.right = decode_node(right)
             nd.left  = decode_node(left)
             return nd
-        '''
+        
         
     createNode.count = 0
     dec = decode_node (v)
@@ -737,7 +671,7 @@ def normalize_features(root):
     return 
         
 #t_list = ['test6.dat']
-t_list = ['ArteryObjAN1-2.dat']
+t_list = ['ArteryObjAN1-7.dat']
 class tDataset(Dataset):
     def __init__(self, transform=None):
         self.names = t_list
@@ -757,7 +691,7 @@ data_loader = DataLoader(dataset, batch_size=1, shuffle=True, drop_last=True)
 
 def main():
 
-    epochs = 3000
+    epochs = 2000
     learning_rate = 1e-4
 
     params = list(leafenc.parameters()) + list(nonleafenc.parameters()) + list(nodeClassifier.parameters()) + list(featuredec.parameters()) + list(bifdec.parameters())+ list(internaldec.parameters())
@@ -801,7 +735,7 @@ def main():
             
             mse_loss = sum(mse_loss_list) / len(mse_loss_list)
             ce_loss  = sum(ce_loss_list)  / len(ce_loss_list)
-            total_loss = (mse_loss + ce_loss)
+            total_loss = (0.5*mse_loss + ce_loss)
 
             count = []
             in_n_nodes = len(d_data.count_nodes(d_data, count))
