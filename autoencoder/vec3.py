@@ -144,6 +144,11 @@ class Vec3:
 
     def toNumpy( self ):
         return np.array( self.toList() )
+
+    def toCPU( self ):
+        li = self.toList()
+        li = [x.cpu().detach() for x in li]
+        return np.array( li )
     
     def setSize( self, size ):
         return self.normalizar() * size

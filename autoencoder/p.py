@@ -619,19 +619,21 @@ data_loader = DataLoader(dataset, batch_size=1, shuffle=True, drop_last=True)
 
 def main():
 
-    epochs = 1000
-    learning_rate = 1e-3
+    epochs = 3000
+    learning_rate = 1e-4
 
     params = list(leafenc.parameters()) + list(nonleafenc.parameters()) + list(nodeClassifier.parameters()) + list(decoder.parameters())
     opt = torch.optim.Adam(params, lr=learning_rate)
 
     #scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=opt, gamma=1)
     train_loss_avg = []
+    train_loss_avg.append(0)
     ce_avg = []
     mse_avg = []
     lr_list = []
     
     for epoch in range(epochs):
+        
         train_loss_avg.append(0)
         ce_avg.append(0)
         mse_avg.append(0)
@@ -662,7 +664,7 @@ def main():
             
             mse_loss = sum(mse_loss_list) / len(mse_loss_list)
             ce_loss  = sum(ce_loss_list)  / len(ce_loss_list)
-            total_loss = (mse_loss + ce_loss)
+            total_loss = (ce_loss)
 
             count = []
             in_n_nodes = len(d_data.count_nodes(d_data, count))
@@ -678,14 +680,20 @@ def main():
             #lr_list[-1] += (scheduler.get_last_lr()[-1])
             batches += 1
             #l2_l.append(len(l2))
-           
-
+        count= []
+        out_n_nodes = len(decoded.count_nodes(decoded, count))
+        if out_n_nodes != 61:
+            print("error")
+            breakpoint()
         train_loss_avg[-1] /= batches
         ce_avg[-1] /= batches
         mse_avg[-1] /= batches
         if epoch % 10 == 0:
             print('Epoch [%d / %d] average reconstruction error: %f mse: %f, ce: %f, lr: %f' % (epoch+1, epochs, train_loss_avg[-1], mse_avg[-1], ce_avg[-1], 0.001))
-            
+
+        if train_loss_avg[-1] > train_loss_avg[-2]*1.1:
+            breakpoint()
+
     input = deserialize(iter(data_loader).next()[0])
     normalize_features(input)
     input.traverseInorder(input)
@@ -715,7 +723,25 @@ def main():
     ax2.set_ylim(0, max(ce_avg))
     #plt.savefig("mse-ce.png")
     plt.show()
+    fig = plt.figure()
+    plt.plot(mse_avg, label="MSE")
+    plt.plot(ce_avg, color="red", label="Cross Entropy")
+    plt.show()
     breakpoint()
+    import vec3
+    import sys
+    sys.modules['vec3'] = vec3
+    import meshplot as mp
+    from vec3 import Vec3
+
+    
+    grafo = G
+
+    posiciones = nx.get_node_attributes( grafo, 'posicion')
+    p = mp.plot( np.array([ posiciones[node].cpu().toNumpy() for node in grafo.nodes]), return_plot=True, shading={'point_size':4})
+
+    for arista in grafo.edges:
+        p.add_lines( grafo.nodes[arista[0]]['posicion'].toNumpy(), grafo.nodes[arista[1]]['posicion'].toNumpy())
    
 
 if __name__ == "__main__":

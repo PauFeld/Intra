@@ -691,7 +691,7 @@ data_loader = DataLoader(dataset, batch_size=1, shuffle=True, drop_last=True)
 
 def main():
 
-    epochs = 3500
+    epochs = 2000
     learning_rate = 1e-4
 
     params = list(leafenc.parameters()) + list(nonleafenc.parameters()) + list(nodeClassifier.parameters()) + list(featuredec.parameters()) + list(bifdec.parameters())+ list(internaldec.parameters())
@@ -735,7 +735,7 @@ def main():
             
             mse_loss = sum(mse_loss_list) / len(mse_loss_list)
             ce_loss  = sum(ce_loss_list)  / len(ce_loss_list)
-            total_loss = (0.2*mse_loss + ce_loss)
+            total_loss = (ce_loss)
 
             count = []
             in_n_nodes = len(d_data.count_nodes(d_data, count))
@@ -760,7 +760,7 @@ def main():
         train_loss_avg[-1] /= batches
         ce_avg[-1] /= batches
         mse_avg[-1] /= batches
-        if epoch % 100 == 0:
+        if epoch % 10 == 0:
             print('Epoch [%d / %d] average reconstruction error: %f mse: %f, ce: %f, lr: %f' % (epoch+1, epochs, train_loss_avg[-1], mse_avg[-1], ce_avg[-1], lr_list[-1]))
             #print("l3", len(loss_l3))
             #print("l2", len(l2))
