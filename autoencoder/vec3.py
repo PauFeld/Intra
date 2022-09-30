@@ -145,10 +145,11 @@ class Vec3:
     def toNumpy( self ):
         return np.array( self.toList() )
 
-    def toCPU( self ):
+    def tocpu( self ):
         li = self.toList()
         li = [x.cpu().detach() for x in li]
-        return np.array( li )
+        #return np.array( li )
+        return [0,0,0]
     
     def setSize( self, size ):
         return self.normalizar() * size

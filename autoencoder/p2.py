@@ -691,13 +691,13 @@ data_loader = DataLoader(dataset, batch_size=1, shuffle=True, drop_last=True)
 
 def main():
 
-    epochs = 2000
+    epochs = 3500
     learning_rate = 1e-4
 
     params = list(leafenc.parameters()) + list(nonleafenc.parameters()) + list(nodeClassifier.parameters()) + list(featuredec.parameters()) + list(bifdec.parameters())+ list(internaldec.parameters())
     opt = torch.optim.Adam(params, lr=learning_rate)
 
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=opt, gamma=1)
+    #scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=opt, gamma=1)
     train_loss_avg = []
     ce_avg = []
     mse_avg = []
@@ -747,12 +747,12 @@ def main():
             opt.zero_grad()
             total_loss.backward()
             opt.step()
-            scheduler.step()
+            #scheduler.step()
 
             train_loss_avg[-1] += (total_loss.item())
             ce_avg[-1] += (ce_loss.item())
             mse_avg[-1] += (mse_loss.item())
-            lr_list[-1] += (scheduler.get_last_lr()[-1])
+            #lr_list[-1] += (scheduler.get_last_lr()[-1])
             batches += 1
             #l2_l.append(len(l2))
            

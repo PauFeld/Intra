@@ -619,7 +619,7 @@ data_loader = DataLoader(dataset, batch_size=1, shuffle=True, drop_last=True)
 
 def main():
 
-    epochs = 3000
+    epochs = 4000
     learning_rate = 1e-4
 
     params = list(leafenc.parameters()) + list(nonleafenc.parameters()) + list(nodeClassifier.parameters()) + list(decoder.parameters())
