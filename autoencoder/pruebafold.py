@@ -12,6 +12,8 @@ from torch import optim
 from torchtext import data
 from torchtext import datasets
 
+
+
 import torchfold
 
 
@@ -115,11 +117,12 @@ class Tree(object):
 
 
 def main():
-    inputs = datasets.snli.ParsedTextField(lower=True)
-    transitions = datasets.snli.ShiftReduceField()
+    inputs = datasets.nli.ParsedTextField(lower=True)
+    transitions = datasets.nli.ShiftReduceField()
     answers = data.Field(sequential=False)
 
-    train, dev, test = datasets.SNLI.splits(inputs, answers, transitions)
+    train, dev, test = 
+    .splits(inputs, answers, transitions)
     inputs.build_vocab(train, dev, test)
     answers.build_vocab(train)
     train_iter, dev_iter, test_iter = data.BucketIterator.splits(
