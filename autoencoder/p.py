@@ -8,7 +8,7 @@ from torch.utils.data import Dataset, DataLoader
 import os
 import numpy as np
 from vec3 import Vec3
-
+import meshplot as mp
 import torch
 torch.manual_seed(125)
 import random
@@ -199,18 +199,43 @@ class Node:
         post_order(root)
         return ret[0][:-1]  # remove last ,
 
-    def search(self, node, data):
-        """
-        Search function will search a node into tree.
-        """
-        # if root is None or root is the search data.
-        if node is None or node.data == data:
-            return node
-        if node.data < data:
-            return self.search(node.right, data)
-        else:
-            return self.search(node.left, data)
+    def toGraph( self, graph, index, dec, proc=True):
+        
+        radius = self.radius.cpu().detach().numpy()
+        if dec:
+            radius= radius[0]
+        print("radius", radius)
+        graph.add_nodes_from( [ (index, {'posicion': radius[0:3], 'radio': radius[3] } ) ])
 
+        if self.right is not None:
+            leftIndex = self.right.toGraph( graph, index + 1, dec)
+
+            graph.add_edge( index, index + 1 )
+            if proc:
+                nx.set_edge_attributes( graph, {(index, index+1) : {'procesada':False}})
+        
+            if self.left is not None:
+                retIndex = self.left.toGraph( graph, leftIndex, dec )
+
+                graph.add_edge( index, leftIndex)
+                if proc:
+                    nx.set_edge_attributes( graph, {(index, leftIndex) : {'procesada':False}})
+            
+            else:
+               return leftIndex
+
+        else:
+            return index + 1
+    
+def plotTree( root, dec ):
+    graph = nx.Graph()
+    root.toGraph( graph, 0, dec)
+    p = mp.plot( np.array([ graph.nodes[v]['posicion'] for v in graph.nodes]), shading={'point_size':0.5}, return_plot=True)
+
+    for arista in graph.edges:
+        p.add_lines( graph.nodes[arista[0]]['posicion'], graph.nodes[arista[1]]['posicion'])
+
+    #p.save("temp.html")
 
 def traverse(root, tree):
        
@@ -328,10 +353,10 @@ def read_tree(filename):
 ###ENCODER
 class LeafEncoder(nn.Module):
     
-    def __init__(self):
+    def __init__(self, feature_size: int, hidden_size: int):
         super(LeafEncoder, self).__init__()
-        self.l1 = nn.Linear(4, 32)
-        self.l2 = nn.Linear(32, 32)
+        self.l1 = nn.Linear(4, hidden_size)
+        self.l2 = nn.Linear(hidden_size, feature_size)
         self.tanh = nn.Tanh()
 
     def forward(self, input):
@@ -346,15 +371,15 @@ class LeafEncoder(nn.Module):
 
 class NonLeafEncoder(nn.Module):
     
-    def __init__(self):
+    def __init__(self, feature_size: int, hidden_size: int):
         super(NonLeafEncoder, self).__init__()
-        self.l1 = nn.Linear(4,16)
-        self.l2 = nn.Linear(16,32)
+        self.l1 = nn.Linear(4,hidden_size)
+        self.l2 = nn.Linear(hidden_size,feature_size)
 
-        self.left = nn.Linear(32,32)
-        self.right = nn.Linear(32,32)
+        self.left = nn.Linear(feature_size,feature_size)
+        self.right = nn.Linear(feature_size,feature_size)
         
-        self.encoder = nn.Linear(64, 32)
+        self.encoder = nn.Linear(2*feature_size, feature_size)
         self.tanh = nn.Tanh()
 
 
@@ -376,8 +401,8 @@ class NonLeafEncoder(nn.Module):
 
         return feature
 
-leafenc = LeafEncoder()
-nonleafenc = NonLeafEncoder()
+leafenc = LeafEncoder(hidden_size=32, feature_size=128)
+nonleafenc = NonLeafEncoder(hidden_size=32, feature_size=128)
 use_gpu = True
 device = torch.device("cuda:0" if use_gpu and torch.cuda.is_available() else "cpu")
 print("device:", device)
@@ -402,14 +427,14 @@ def encode_structure_fold(root):
 
 class NodeClassifier(nn.Module):
     
-    def __init__(self):
+    def __init__(self, latent_size : int, hidden_size : int):
         super(NodeClassifier, self).__init__()
-        self.mlp1 = nn.Linear(32, 16)
-        self.tanh = nn.LeakyReLU()
-        self.mlp2 = nn.Linear(16, 8)
+        self.mlp1 = nn.Linear(latent_size, hidden_size*2)
+        self.tanh = nn.Tanh()
+        self.mlp2 = nn.Linear(hidden_size*2, hidden_size)
 
-        self.tanh2 = nn.LeakyReLU()
-        self.mlp3 = nn.Linear(8, 3)
+        self.tanh2 = nn.Tanh()
+        self.mlp3 = nn.Linear(hidden_size, 3)
 
     def forward(self, input_feature):
         output = self.mlp1(input_feature)
@@ -425,13 +450,13 @@ class NodeClassifier(nn.Module):
 class Decoder(nn.Module):
     
 
-    def __init__(self):
+    def __init__(self, latent_size : int, hidden_size):
         super(Decoder, self).__init__()
-        self.mlp = nn.Linear(32,64)
-        self.mlp2 = nn.Linear(64,32)
-        self.mlp_left = nn.Linear(32,32)
-        self.mlp_right = nn.Linear(32,32)
-        self.mlp3 = nn.Linear(32,4)
+        self.mlp = nn.Linear(latent_size,hidden_size)
+        self.mlp2 = nn.Linear(hidden_size,latent_size)
+        self.mlp_left = nn.Linear(latent_size, latent_size)
+        self.mlp_right = nn.Linear(latent_size, latent_size)
+        self.mlp3 = nn.Linear(latent_size,4)
         self.tanh = nn.Tanh()
 
     def forward(self, parent_feature, label):
@@ -442,48 +467,37 @@ class Decoder(nn.Module):
         
         if label == 0:
             rad_feature = self.mlp3(vector)
-            
             return (None, None, rad_feature)
+
         elif label == 1:
             right_feature = self.mlp_right(vector)
             right_feature = self.tanh(right_feature)
             rad_feature = self.mlp3(vector)
-            
-
             return (None,  right_feature, rad_feature)
+
         elif label == 2:
             right_feature = self.mlp_right(vector)
             right_feature = self.tanh(right_feature)
-
             left_feature = self.mlp_left(vector)
             left_feature = self.tanh(left_feature)
-
             rad_feature = self.mlp3(vector)
-            
             return (left_feature, right_feature, rad_feature)
     
-nodeClassifier = NodeClassifier()
+nodeClassifier = NodeClassifier(latent_size=128, hidden_size=256)
 nodeClassifier = nodeClassifier.to(device)
-decoder = Decoder()
+decoder = Decoder(latent_size=128, hidden_size=256)
 decoder = decoder.to(device)
 
 def calcularLossEstructura(cl_p, original):
-    #mult = torch.tensor([1/3.,1/56,1/2.], device = device)#1-7
-    #mult = torch.tensor([1/3.,1/16,1/2.], device = device)#1-2
-    mult = torch.tensor([1/3.,1/56,1/2.], device = device)
-    ce = nn.CrossEntropyLoss(weight=mult)
 
-    
+    mult = torch.tensor([1/3.,1/66,1/2.], device = device)
+    ce = nn.CrossEntropyLoss(weight=mult)
     if original.childs() == 0:
         vector = [1, 0, 0] 
     if original.childs() == 1:
         vector = [0, 1, 0]
     if original.childs() == 2:
         vector = [0, 0, 1] 
-
-    #mult = torch.tensor([1/3.,1/58,1/2.], device = device)#1-0
-    #mult = torch.tensor([1/4.,1/72,1/3.], device = device)#19-2
-    #mult = torch.tensor([1/2.,1/60,1/1.], device = device)#b1-0
 
     c = ce(cl_p, torch.tensor(vector, device=device, dtype = torch.float).reshape(1, 3))
     return c
@@ -498,9 +512,9 @@ def calcularLossAtributo(nodo, radio):
     return mse
 
 
-def decode_structure_fold(v, root, max_nodes = 200, max_depth = 100):
+def decode_structure_fold(v, root):
 
-    def decode_node(v, node, max_nodes, max_depth, level = 0):
+    def decode_node(v, node, level = 0):
         cl = nodeClassifier(v)
         _, label = torch.max(cl, 1)
         label = label.data
@@ -514,16 +528,16 @@ def decode_structure_fold(v, root, max_nodes = 200, max_depth = 100):
         nodoSiguienteLeft = node.left
 
         if nodoSiguienteRight is not None and right is not None:
-            nd.right = decode_node(right, nodoSiguienteRight, max_nodes, max_depth, level=level+1)
+            nd.right = decode_node(right, nodoSiguienteRight, level=level+1)
             level=level-1
         if nodoSiguienteLeft is not None and left is not None:
-            nd.left  = decode_node(left, nodoSiguienteLeft, max_nodes, max_depth, level=level+1)
+            nd.left  = decode_node(left, nodoSiguienteLeft, level=level+1)
             level=level-1
         return nd
 
        
     createNode.count = 0
-    dec = decode_node (v, root, max_nodes, max_depth, level=0)
+    dec = decode_node (v, root, level=0)
     return dec
 
 def decode_testing(v, max):
@@ -532,13 +546,13 @@ def decode_testing(v, max):
         cl = nodeClassifier(v)
         _, label = torch.max(cl, 1)
         label = label.data
-        print(label)
+        #print(label)
         izq, der, radio = decoder(v, label)
         nd = createNode(1,radio)
        
-        if der is not None:
+        if der is not None and createNode.count < max:
             nd.right = decode_node(der)
-        if izq is not None:
+        if izq is not None and createNode.count < max:
             nd.left  = decode_node(izq)
         
         return nd
@@ -600,6 +614,8 @@ def normalize_features(root):
         
 #t_list = ['test6.dat']
 t_list = ['ArteryObjAN1-7.dat']
+#t_list = os.listdir("./trees")
+print(t_list)
 class tDataset(Dataset):
     def __init__(self, transform=None):
         self.names = t_list
@@ -619,15 +635,16 @@ data_loader = DataLoader(dataset, batch_size=1, shuffle=True, drop_last=True)
 
 def main():
 
-    epochs = 4000
+    epochs = 1000
     learning_rate = 1e-4
 
     params = list(leafenc.parameters()) + list(nonleafenc.parameters()) + list(nodeClassifier.parameters()) + list(decoder.parameters())
-    opt = torch.optim.Adam(params, lr=learning_rate)
-
-    #scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=opt, gamma=1)
+    opt = torch.optim.Adam(params, lr=learning_rate) #// (32) SGD //  (32) 1e-5 // (64) Adam  // 64 Adam 1e-5 // 
+    #opt = torch.optim.SGD(params, lr=learning_rate, momentum=0.9)
+    #scheduler = torch.optim.lr_scheduler.MultiStepLR(opt, milestones=[300], gamma=0.1)
+    #scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=opt, gamma=0.9997)
     train_loss_avg = []
-    train_loss_avg.append(0)
+    #train_loss_avg.append(0)
     ce_avg = []
     mse_avg = []
     lr_list = []
@@ -639,9 +656,11 @@ def main():
         mse_avg.append(0)
         lr_list.append(0)
         batches = 0
+        suma = np.array([0.,0.,0.])
         for data in data_loader:
             
             d_data = deserialize(data[0])
+            '''
             li = []
             d_data.traverseInorderChilds(d_data, li)
             zero = [a for a in li if a == 0]
@@ -650,12 +669,15 @@ def main():
             qzero = len(zero)
             qOne = len(one)
             qtwo = len(two)
+            vec = np.array([qzero, qOne, qtwo])
+            suma += vec
+            print(vec)
+            '''
             normalize_features(d_data)
             enc_fold_nodes = encode_structure_fold(d_data).to(device)
+            #print("sum", suma)
             
-            max_depth = 30
-            max_nodes = 200
-            decoded = decode_structure_fold(enc_fold_nodes, d_data, max_nodes, max_depth)
+            decoded = decode_structure_fold(enc_fold_nodes, d_data)
            
             l = []
             mse_loss_list = decoded.traverseInorderMSE(decoded, l)
@@ -664,7 +686,7 @@ def main():
             
             mse_loss = sum(mse_loss_list) / len(mse_loss_list)
             ce_loss  = sum(ce_loss_list)  / len(ce_loss_list)
-            total_loss = (ce_loss)
+            total_loss = (ce_loss + 0.1*mse_loss)
 
             count = []
             in_n_nodes = len(d_data.count_nodes(d_data, count))
@@ -672,6 +694,7 @@ def main():
             opt.zero_grad()
             total_loss.backward()
             opt.step()
+            #
             #scheduler.step()
 
             train_loss_avg[-1] += (total_loss.item())
@@ -682,17 +705,20 @@ def main():
             #l2_l.append(len(l2))
         count= []
         out_n_nodes = len(decoded.count_nodes(decoded, count))
-        if out_n_nodes != 61:
-            print("error")
-            breakpoint()
+        #lr_list[-1] += (scheduler.get_last_lr()[-1])
+        #suma //= len(data_loader)
+        #print("sui", suma)
+        #if out_n_nodes != 61:
+        #    print("error")
+        #    breakpoint()
         train_loss_avg[-1] /= batches
         ce_avg[-1] /= batches
         mse_avg[-1] /= batches
         if epoch % 10 == 0:
-            print('Epoch [%d / %d] average reconstruction error: %f mse: %f, ce: %f, lr: %f' % (epoch+1, epochs, train_loss_avg[-1], mse_avg[-1], ce_avg[-1], 0.001))
+            print('Epoch [%d / %d] average reconstruction error: %f mse: %f, ce: %f, lr: %f' % (epoch+1, epochs, train_loss_avg[-1], mse_avg[-1], ce_avg[-1], lr_list[-1]))
 
-        if train_loss_avg[-1] > train_loss_avg[-2]*1.1:
-            breakpoint()
+        #if train_loss_avg[-1] > train_loss_avg[-2]*1.1:
+        #    breakpoint()
 
     input = deserialize(iter(data_loader).next()[0])
     normalize_features(input)
@@ -703,13 +729,13 @@ def main():
     count = []
     numerar_nodos(decoded, count)
     decoded.traverseInorder(decoded)
-   
+    
     G = arbolAGrafo (decoded)
     plt.figure()
     nx.draw(G, node_size = 150, with_labels = True)
     plt.show()
+    
     fig = plt.plot(train_loss_avg) 
-    #plt.savefig("loss.png")
     plt.show()
     
     fig, ax = plt.subplots()
@@ -721,28 +747,14 @@ def main():
 
     ax2.legend(loc=3)
     ax2.set_ylim(0, max(ce_avg))
-    #plt.savefig("mse-ce.png")
+    #plt.savefig("2arboles.png")
     plt.show()
     fig = plt.figure()
     plt.plot(mse_avg, label="MSE")
     plt.plot(ce_avg, color="red", label="Cross Entropy")
     plt.show()
     breakpoint()
-    import vec3
-    import sys
-    sys.modules['vec3'] = vec3
-    import meshplot as mp
-    from vec3 import Vec3
-
     
-    grafo = G
-
-    posiciones = nx.get_node_attributes( grafo, 'posicion')
-    p = mp.plot( np.array([ posiciones[node].cpu().toNumpy() for node in grafo.nodes]), return_plot=True, shading={'point_size':4})
-
-    for arista in grafo.edges:
-        p.add_lines( grafo.nodes[arista[0]]['posicion'].toNumpy(), grafo.nodes[arista[1]]['posicion'].toNumpy())
-   
 
 if __name__ == "__main__":
     main()

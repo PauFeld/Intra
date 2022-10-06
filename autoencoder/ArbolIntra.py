@@ -6,7 +6,7 @@ from vec3 import Vec3
 import matplotlib.pyplot as plt
 
 
-filename = "ArteryObjAN19-2"
+filename = "ArteryObjAN42-0"
 
 grafo = pickle.load(open('grafos/' +filename + '-grafo.gpickle', 'rb'))
 
@@ -31,6 +31,7 @@ for nodo in grafo.nodes:
         break
 
 print(numeroNodoInicial)
+
 rad = grafo.nodes[numeroNodoInicial]['radio']
 pos = list(grafo.nodes[numeroNodoInicial]['posicion'].toNumpy())#.append(grafo.nodes[numeroNodoInicial]['radio'])
 pos.append(rad)
@@ -59,7 +60,7 @@ serial = nodoRaiz.serialize(nodoRaiz)
 print("serialized", nodoRaiz.serialize(nodoRaiz))
 
 #write serialized string to file
-file = open("./Trees/ArteryObjAN19-2.dat", "w")
+file = open("./Trees/" + filename + ".dat", "w")
 file.write(serial)
 file.close() 
 
@@ -117,6 +118,7 @@ def arbolAGrafo (nodoRaiz):
     #return G, a
     return G
 
+'''
 filename = 'test6.dat'
 arbol = p.deserialize(p.read_tree(filename))
 print("arbol", arbol)
@@ -141,3 +143,4 @@ p = mp.plot( np.array([ posiciones[node].toNumpy() for node in grafo.nodes]), re
 
 for arista in grafo.edges:
     p.add_lines( grafo.nodes[arista[0]]['posicion'].toNumpy(), grafo.nodes[arista[1]]['posicion'].toNumpy())
+    '''
