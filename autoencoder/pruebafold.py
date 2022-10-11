@@ -14,7 +14,7 @@ from torchtext import datasets
 
 
 
-import torchfold
+import torch_fold
 
 
 parser = argparse.ArgumentParser(description='SPINN')
@@ -139,7 +139,7 @@ def main():
             opt.zero_grad()
 
             all_logits, all_labels = [], []
-            fold = torchfold.Fold(cuda=args.cuda)
+            fold = torch_fold.Fold(cuda=args.cuda)
             for example in batch.dataset:
                 tree = Tree(example, inputs.vocab, answers.vocab)
                 if args.fold:
