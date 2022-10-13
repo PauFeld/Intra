@@ -1,7 +1,7 @@
 import collections
 
 import torch
-from torch.autograd import Variable
+#from torch.autograd import Variable
 
 
 class Fold(object):
@@ -30,6 +30,7 @@ class Fold(object):
             return self
 
         def get(self, values):
+            print("v", values[self.step][self.op])
             return values[self.step][self.op].get(self.index, self.split_idx)
 
         def __repr__(self):
@@ -46,6 +47,7 @@ class Fold(object):
         def try_get_batched(self, nodes):
             all_are_nodes = all(isinstance(n, Fold.Node) for n in nodes)
             num_nodes_is_equal = len(nodes) == self.batch_size
+
             if not all_are_nodes or not num_nodes_is_equal:
                 return None
 
@@ -76,12 +78,11 @@ class Fold(object):
                     self.result[split_idx] = torch.chunk(self.result[split_idx], self.batch_size)
                 return self.result[split_idx][index]
 
-    def __init__(self, volatile=False, cuda=False):
+    def __init__(self, cuda=False):
         self.steps = collections.defaultdict(
             lambda: collections.defaultdict(list))
         self.cached_nodes = collections.defaultdict(dict)
         self.total_nodes = 0
-        self.volatile = volatile
         self._cuda = cuda
 
     def cuda(self):
@@ -92,27 +93,31 @@ class Fold(object):
     def add(self, op, *args):
        
         """Add op to the fold."""
-        print("args", args)
+        #print("args", args)
         self.total_nodes += 1
-        '''
+        
+        #for arg in args:
+            #print("arg", arg) #if isinstance(arg, Fold.Node)
+            #print("op", op)
+        #args = [arg for arg in args if arg is not None]
+        #print("args", args)
         if not all([isinstance(arg, (
-                Fold.Node, int, torch.Tensor, Variable)) for arg in args]):
+                Fold.Node, int, torch.Tensor, None)) for arg in args]):
             raise ValueError(
-                "All args should be Tensor, Variable, int or Node, got: %s" % str(args))
-        '''
-        for arg in args:
-            print("arg", arg) #if isinstance(arg, Fold.Node)
-            print("op", op)
+                "All args should be Tensor, int or Node, got: %s" % str(args))
+        
+        
             
-       
+        #cuando el nodo izq o der no exisate se pasa un none y eso es lo que crea el problema
         if args not in self.cached_nodes[op]:
             step = max([0] + [arg.step + 1 for arg in args
                               if isinstance(arg, Fold.Node)])
             node = Fold.Node(op, step, len(self.steps[step][op]), *args)
+            #print("node", node)
             self.steps[step][op].append(args)
             self.cached_nodes[op][args] = node
-            print("cached", self.cached_nodes)
-        print("return", self.cached_nodes[op][args])
+            #print("cached", self.cached_nodes)
+        #print("return", self.cached_nodes[op][args])
         return self.cached_nodes[op][args]
    
     
@@ -122,6 +127,8 @@ class Fold(object):
         res = []
         for arg in arg_lists:
             r = []
+            print("arg", arg)
+            
             if all(isinstance(arg_item, Fold.Node) for arg_item in arg):
                 assert all(arg[0].batch == arg_item.batch
                            for arg_item in arg[1:])
@@ -129,24 +136,31 @@ class Fold(object):
                 if arg[0].batch:
                     batched_arg = values[arg[0].step][arg[0].op].try_get_batched(arg)
                     if batched_arg is not None:
+                        print("batched", batched_arg)
                         res.append(batched_arg)
                     else:
-                        res.append(
-                            torch.cat([arg_item.get(values)
-                                       for arg_item in arg], 0))
+                        print("a", arg)
+                        for arg_item in arg:
+                            print("arg_item", arg_item.get(values))
+                            
+                        res.append(torch.cat([arg_item.get(values) for arg_item in arg], 0))
+                        print("cat", [arg_item.get(values)
+                                       for arg_item in arg])
+                    
                 else:
+                   
                     for arg_item in arg[1:]:
                         if arg_item != arg[0]:
                             raise ValueError("Can not use more then one of nobatch argument, got: %s." % str(arg_item))
                     res.append(arg[0].get(values))
+                print("Res", res)
             elif all(isinstance(arg_item, int) for arg_item in arg):
                 if self._cuda:
-                    var = Variable(
-                        torch.cuda.LongTensor(arg), volatile=self.volatile)
+                    var =  torch.Tensor(arg, device = self._cuda)
                 else:
-                    var = Variable(
-                        torch.LongTensor(arg), volatile=self.volatile)
+                    var =  torch.Tensor(arg)
                 res.append(var)
+                
             else:
                 for arg_item in arg:
                     print("arg", arg_item)
@@ -154,7 +168,7 @@ class Fold(object):
                     if isinstance(arg_item, Fold.Node):
                         assert arg_item.batch
                         r.append(arg_item.get(values))
-                    elif isinstance(arg_item, (torch.Tensor, Variable)):
+                    elif isinstance(arg_item, (torch.Tensor)):
                         r.append(arg_item)
                     else:
                         raise ValueError(
@@ -167,49 +181,64 @@ class Fold(object):
         for arg in arg_lists:
             r = []
             if isinstance(arg[0], Fold.Node):
+                #print("if", arg)
                 if arg[0].batch:
+                    #print("arg0", arg[0])
                     for x in arg:
                         r.append(x.get(values))
+                        #print("r",r)
+                        #print("x",x.get(values))
                     res.append(torch.cat(r, 0))
                 else:
                     for i in range(2, len(arg)):
                         if arg[i] != arg[0]:
                             raise ValueError("Can not use more then one of nobatch argument, got: %s." % str(arg))
                     x = arg[0]
+                    print("x", x)
                     res.append(x.get(values))
+                    
             else:
+                #print("else", arg)
                 # Below is what this extension changes against the original version:
                 #   We make Fold handle float tensor
                 try:
-                    if (isinstance(arg[0], Variable)):
+                    if (isinstance(arg[0], torch.Tensor)):
                         var = torch.cat(arg, 0)
                     else:
-                        var = Variable(torch.cat(arg, 0), volatile=self.volatile)
+                        var = torch.cat(torch.tensor(arg, 0))
                     if self._cuda:
                         var = var.cuda()
                     res.append(var)
+                    #print("var", var)
                 except:
                     print("Constructing float tensor from %s" % str(arg))
                     raise
+        print("res", res)
         return res
-    
+   
 
-    def apply(self, nn, nodes):
+    def apply(self, nn, nodes): #nn es la red y nodes el fold
         """Apply current fold to given neural module."""
         values = {}
+        print("keys", self.steps[0])
         for step in sorted(self.steps.keys()):
+            print("step", step)
             values[step] = {}
             for op in self.steps[step]:
+                print("op", op)
                 func = getattr(nn, op)
                 try:
-                    batched_args = self._batch_args(
-                        zip(*self.steps[step][op]), values)
+                    batched_args = self._batch_args(zip(*self.steps[step][op]), values)
+                    print("batched_args", batched_args)
+                    print("batched_args", batched_args[0])
+                    
                 except Exception:
                     print("Error while executing node %s[%d] with args: %s" % (
                         op, step, self.steps[step][op][0]))
                     raise
                 if batched_args:
                     arg_size = batched_args[0].size()[0]
+                    print("arg_size", arg_size)
                 else:
                     arg_size = 1
                 res = func(*batched_args)
@@ -231,7 +260,7 @@ class Fold(object):
                 first_el = ''
                 for arg in self.steps[step][op][0]:
                     if first_el: first_el += ', '
-                    if isinstance(arg, (torch.Tensor, Variable)):
+                    if isinstance(arg, (torch.Tensor)):
                         first_el += str(arg.size())
                     else:
                         first_el += str(arg)
@@ -274,9 +303,9 @@ class Unfold(object):
             return arg.tensor
         elif isinstance(arg, int):
             if self._cuda:
-                return Variable(torch.cuda.LongTensor([arg]), volatile=self.volatile)
+                return torch.cuda.LongTensor([arg])
             else:
-                return Variable(torch.LongTensor([arg]), volatile=self.volatile)
+                return torch.LongTensor([arg])
         else:
             return arg
 

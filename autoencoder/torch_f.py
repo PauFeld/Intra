@@ -6,6 +6,7 @@ from torch.autograd import Variable
 import torch.nn as nn
 from torch import optim
 import torch.nn.functional as F
+#from itertools import izip
 
 
 class Fold(object):
@@ -91,7 +92,7 @@ class Fold(object):
                         var = Variable(torch.cat(arg,0).cuda(), volatile=self.volatile)
                     res.append(var)
                 except:
-                    print ("Constructing LongTensor from %s" % str(arg))
+                    print("Constructing LongTensor from %s" % str(arg))
                     raise
         return res
 
@@ -106,7 +107,7 @@ class Fold(object):
                     batched_args = self._batch_args(
                         zip(*self.steps[step][op]), values)
                 except Exception:
-                    print ("Error while executing node %s[%d] with args: %s" % (
+                    print("Error while executing node %s[%d] with args: %s" % (
                         op, step, self.steps[step][op]))
                     raise
                 if batched_args:
@@ -123,10 +124,10 @@ class Fold(object):
         try:
             return self._batch_args(nodes, values)
         except Exception:
-            print ("Retrieving %s" % nodes)
+            print("Retrieving %s" % nodes)
             for lst in nodes:
                 if isinstance(lst, Fold.Node):
-                    print (', '.join([str(x.get(values).size()) for x in lst]))
+                    print(', '.join([str(x.get(values).size()) for x in lst]))
             raise
 
 
@@ -176,7 +177,7 @@ class Unfold(object):
 
     def apply(self, nn, nodes):
         if nn != self.nn:
-            raise ValueError("Expected that nn argument passed to constructor and passed to apply would match.")
+            raise ValueError(u"Expected that nn argument passed to constructor and passed to apply would match.")
         result = []
         for n in nodes:
             result.append(torch.cat([self._arg(a) for a in n]))
