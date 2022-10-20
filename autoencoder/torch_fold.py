@@ -69,9 +69,18 @@ class Fold(object):
                 return None
 
         def get(self, index, split_idx=-1):
+            print("split", split_idx)
             if split_idx == -1:
+                print("result", isinstance(self.result, tuple))
+                print("result", self.result)
                 if not isinstance(self.result, tuple):
                     self.result = torch.chunk(self.result, self.batch_size)
+                    print("f")
+                print("result", self.result)
+                
+                print("index", index)
+                print("r", self.result[0])
+                
                 return self.result[index]
             else:
                 if not isinstance(self.result[split_idx], tuple):
@@ -93,26 +102,20 @@ class Fold(object):
     def add(self, op, *args):
        
         """Add op to the fold."""
-        #print("args", args)
+    
         self.total_nodes += 1
         
-        #for arg in args:
-            #print("arg", arg) #if isinstance(arg, Fold.Node)
-            #print("op", op)
-        #args = [arg for arg in args if arg is not None]
-        #print("args", args)
-        if not all([isinstance(arg, (
-                Fold.Node, int, torch.Tensor, None)) for arg in args]):
+        
+        if not all([isinstance(arg, (Fold.Node, int, torch.Tensor)) for arg in args]):
             raise ValueError(
                 "All args should be Tensor, int or Node, got: %s" % str(args))
         
-        
-            
-        #cuando el nodo izq o der no exisate se pasa un none y eso es lo que crea el problema
+        #voy creando nodos y agregndolos a cached nodes, 
         if args not in self.cached_nodes[op]:
-            step = max([0] + [arg.step + 1 for arg in args
+            step = max([0] + [arg.step + 1 for arg in args 
                               if isinstance(arg, Fold.Node)])
-            node = Fold.Node(op, step, len(self.steps[step][op]), *args)
+            node = Fold.Node(op, step, len(self.steps[step][op]), *args) #en(self.steps[step][op] es index, cuenta los nodos por nivel
+            #arg a veces son solo los features del nodo, a veces tiene info de los hijos tambien
             #print("node", node)
             self.steps[step][op].append(args)
             self.cached_nodes[op][args] = node
@@ -180,14 +183,16 @@ class Fold(object):
         res = []
         for arg in arg_lists:
             r = []
+            #si viene un "nodo", obtengo todos los argumentos que tiene ese nodo y los concateno en un solo vector
             if isinstance(arg[0], Fold.Node):
-                #print("if", arg)
+                print("if", arg)
                 if arg[0].batch:
                     #print("arg0", arg[0])
                     for x in arg:
+                        print("x",x)
                         r.append(x.get(values))
                         #print("r",r)
-                        #print("x",x.get(values))
+                        
                     res.append(torch.cat(r, 0))
                 else:
                     for i in range(2, len(arg)):
@@ -198,14 +203,18 @@ class Fold(object):
                     res.append(x.get(values))
                     
             else:
-                #print("else", arg)
+                print("else", arg)
                 # Below is what this extension changes against the original version:
                 #   We make Fold handle float tensor
-                try:
+                try: #concateno todos los argumentos en un solo vector
                     if (isinstance(arg[0], torch.Tensor)):
+                        print("a", arg)
                         var = torch.cat(arg, 0)
+                        print("v", var)
                     else:
-                        var = torch.cat(torch.tensor(arg, 0))
+                        print("a", arg)
+                        var = torch.cat(torch.tensor(arg), 0)
+                        print("v", var)
                     if self._cuda:
                         var = var.cuda()
                     res.append(var)
@@ -221,13 +230,14 @@ class Fold(object):
         """Apply current fold to given neural module."""
         values = {}
         print("keys", self.steps[0])
-        for step in sorted(self.steps.keys()):
+        for step in sorted(self.steps.keys()): #step es elo nivel, los agrupa por nivel de dependencia y asi ejecuta
             print("step", step)
             values[step] = {}
-            for op in self.steps[step]:
-                print("op", op)
+            for op in self.steps[step]: #despues va por cada operacion del nivel
                 func = getattr(nn, op)
                 try:
+                    print("steps", self.steps[step])
+                    print("steps", self.steps[step][op])
                     batched_args = self._batch_args(zip(*self.steps[step][op]), values)
                     print("batched_args", batched_args)
                     print("batched_args", batched_args[0])
@@ -237,7 +247,7 @@ class Fold(object):
                         op, step, self.steps[step][op][0]))
                     raise
                 if batched_args:
-                    arg_size = batched_args[0].size()[0]
+                    arg_size = batched_args[0].size()[0] #este numero depende de la cantidad de nodos en cada operacion para ese nivel, viene de concatenar todos los tensores
                     print("arg_size", arg_size)
                 else:
                     arg_size = 1

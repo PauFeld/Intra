@@ -2,7 +2,6 @@ from __future__ import absolute_import
 import collections
 
 import torch
-from torch.autograd import Variable
 import torch.nn as nn
 from torch import optim
 import torch.nn.functional as F
@@ -37,6 +36,10 @@ class Fold(object):
             if self.split_idx >= 0:
                 return values[self.step][self.op][self.split_idx][self.index]
             else:
+                #print("step", self.step)
+                #print("index", self.index)
+                #print("value", values[self.step][self.op])
+                #print("value", values[self.step][self.op][self.index])
                 return values[self.step][self.op][self.index]
 
         def __repr__(self):
@@ -52,77 +55,162 @@ class Fold(object):
         self._cuda = cuda
         self._variable = variable
 
+    def __repr__(self):
+        return str(self.steps.keys())
+
     def cuda(self):
         self._cuda = True
         return self
 
     def add(self, op, *args):
         u"""Add op to the fold."""
+
+        #print(args)
+
         self.total_nodes += 1
+        
+        # si el nodo no fue visitado antes 
         if args not in self.cached_nodes[op]:
-            step = max([0] + [arg.step + 1 for arg in args
-                              if isinstance(arg, Fold.Node)])
+            # 
+            step = max([0] + [arg.step + 1 for arg in args if isinstance(arg, Fold.Node)])
+            #print("step", step)
             node = Fold.Node(op, step, len(self.steps[step][op]), *args)
             self.steps[step][op].append(args)
             self.cached_nodes[op][args] = node
         return self.cached_nodes[op][args]
 
-    def _batch_args(self, arg_lists, values):
+
+    def _batch_args(self, arg_lists, values, op):
         res = []
+        #print("v", values)
         for arg in arg_lists:
+            #print('recorro args', arg)
             r = []
             if isinstance(arg[0], Fold.Node):
                 if arg[0].batch:
                     for x in arg:
+                        #print("x", x)
                         r.append(x.get(values))
-                    res.append(torch.cat(r, 0))
+                        #print("r", r)
+                    
+                    res.append(torch.stack(r))
+                    #res.append(r)
+                    #print("ld", res)
                 else:
                     for i in range(2, len(arg)):
                         if arg[i] != arg[0]:
                             raise ValueError(u"Can not use more then one of nobatch argument, got: %s." % str(arg))
                     x = arg[0]
                     res.append(x.get(values))
+                    #print("lg", res)
+                
+
             else:
-                try:
-                    if self._variable:
-                        #var = Variable(torch.cuda.LongTensor(arg), volatile=self.volatile)
-                        var = torch.cat(arg,0)
+                #print("else")
+                if isinstance(arg[0], torch.Tensor):  
+                    try:
+                        #print("antes de cat", arg)
+                        var = torch.stack(arg)
+                        #print("despues de cat", var)
+                        res.append(var)
+                        #print("lc", res)
+                    except:
+                        print("Constructing LongTensor from %s" % str(arg))
+                        raise
+                else:
+                    #print("arg es nodo")
+                    #print("radio", arg[0].radius)
+                    #print("op", op)
+                    if op != "classifyLossEstimator" :
+                    #var = torch.cat(arg[0].radius,0)
+                        var = arg[0].radius
                     else:
-                        #var = Variable(torch.LongTensor(arg), volatile=self.volatile)
-                        var = Variable(torch.cat(arg,0).cuda(), volatile=self.volatile)
+                        #print("arg nodo", arg)
+                        var = [a.childs() for a in arg]
+                        #print("var", var)
                     res.append(var)
-                except:
-                    print("Constructing LongTensor from %s" % str(arg))
-                    raise
+                    #print("res", res)
+        
+        #print("RES", res)           
         return res
 
     def apply(self, nn, nodes):
         u"""Apply current fold to given neural module."""
         values = {}
         for step in sorted(self.steps.keys()):
+            #print('itera',step)
+            
             values[step] = {}
+#            print("vs", values)
+#            print("vs", values[step])
             for op in self.steps[step]:
                 func = getattr(nn, op)
-                try:
+                #print("op", op)
+
+                ##junto los atributos de los nodos
+                ##si estoy en op classify  loss, necesito el nodo directamente y no los atributos
+                try:                    
                     batched_args = self._batch_args(
-                        zip(*self.steps[step][op]), values)
+                        zip(*self.steps[step][op]), values, op)
+                    #print("bc", batched_args)
                 except Exception:
-                    print("Error while executing node %s[%d] with args: %s" % (
-                        op, step, self.steps[step][op]))
+                    print("Error while executing node %s[%d] with args: %s" % (op, step, self.steps[step][op]))
                     raise
-                if batched_args:
-                    arg_size = batched_args[0].size()[0]
+                #print('batched_args',batched_args)
+                if batched_args is not None:
+                    #print("arg", batched_args)
+                    #arg_size = batched_args[0].size()[0]
+                    arg_size = len(batched_args[0])
+                    #print(arg_size)
                 else:
                     arg_size = 1
+                #print("batched args", batched_args)
+                #print("batched args", len(batched_args))
+                
+                #batched_args = batched_args[0].reshape(4,-1).T
+                #if op != "classifyLossEstimator" :
+                    #print("b 4", batched_args)
+                    #batched_args = [b.reshape(4, -1).T for b in batched_args]
+                
+                #else:
+                #    print("bat", batched_args[0])
+                    #batched_args = [batched_args[0], nodes]
+                
+                #print("batched args reshaped", batched_args)
                 res = func(*batched_args)
+                #print("paso por la red", res)
+#                print("is", isinstance(res, (tuple, list)))
                 if isinstance(res, (tuple, list)):
+                    #print('res if',res)
                     values[step][op] = []
                     for x in res:
-                        values[step][op].append(torch.chunk(x, arg_size))
+                        #values[step][op].append(torch.chunk(x, arg_size))
+                        values[step][op].append(x)
+                    #print("values", values[step][op])
                 else:
-                    values[step][op] = torch.chunk(res, arg_size)
+                    #print('else res',res)
+                    #print('res shape',res.shape)
+                    #print(arg_size)
+                    #print("len", len(res.shape))
+                    #print("len", len(res))
+                    #print("op", op)
+                    if len(res.shape) == 1 and op != 'vectorAdder':
+                        #values[step][op] = torch.split(res, arg_size, 0)
+                        values[step][op] = res.reshape(-1, 4)
+                    else:
+                        values[step][op] = res
+                
+                    #print("chunk", len(values[step][op]))
+                    '''
+                    for c in range(len(ch)):
+                        values[step][op][c] = ch[c]
+                    print('res',values[step][op])
+                    '''
+                    
+   
+                    
         try:
-            return self._batch_args(nodes, values)
+            return self._batch_args(nodes, values, op)
         except Exception:
             print("Retrieving %s" % nodes)
             for lst in nodes:
@@ -162,9 +250,9 @@ class Unfold(object):
             return arg.tensor
         elif isinstance(arg, int):
             if self._cuda:
-                return Variable(torch.cuda.LongTensor([arg]), volatile=self.volatile)
+                return torch.cuda.LongTensor([arg])
             else:
-                return Variable(torch.LongTensor([arg]), volatile=self.volatile)
+                return torch.LongTensor([arg])
         else:
             return arg
 
